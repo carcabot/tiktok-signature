@@ -1,0 +1,23 @@
+{
+  "name": "tiktok-signature",
+  "version": "1.0.0",
+  "description": "Install `jsdom`",
+  "main": "signature.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carcabot/tiktok-signature.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/carcabot/tiktok-signature/issues"
+  },
+  "homepage": "https://github.com/carcabot/tiktok-signature#readme",
+  "dependencies": {
+    "jsdom": "^15.2.1"
+  }
+}
