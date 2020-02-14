@@ -31,14 +31,15 @@ const options = {
 
         const browser = await puppeteer.launch(options);
         const page = await browser.newPage();
-        await page.goto(__dirname + '/local.html', { waitUntil: 'domcontentloaded' });
+        await page.goto('file://' + __dirname + '/local.html', { waitUntil: 'load' });
+
         await page.emulate(iPhonex);
         const token = await page.evaluate(
             `
             url = '${url}';
             `
         );
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
         console.log(await page.title());
         await browser.close();
 
