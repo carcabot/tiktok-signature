@@ -15,9 +15,14 @@ class Signer {
     '--ignore-certifcate-errors',
     '--ignore-certifcate-errors-spki-list',
   ]
-  constructor(userAgent) {
+
+  constructor(userAgent, tac) {
     if (userAgent) {
       this.userAgent = userAgent
+    }
+
+    if (tac) {
+      this.tac = tac
     }
 
     this.args.push(`--user-agent="${this.userAgent}"`)
@@ -35,6 +40,12 @@ class Signer {
     this.page = await this.browser.newPage();
     await this.page.goto('file://' + __dirname + '/index.html', { waitUntil: 'load' });
     await this.page.emulate(iPhonex);
+
+    if (this.tac) {
+      await this.page.evaluate((x) => {
+        window.tac = x
+      }, this.tac)
+    }
 
     return this
   }
