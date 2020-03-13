@@ -55,8 +55,6 @@ The response tokne should look like this
 root@localhost: VIm6dAAgEBYZFjzZxqkSy1SJu2AAAlc
 ```
 
-If you cannot succeed with this token, replace `tac` token (`window.tac`) inside `local.html`.
-
 ## Fetch service url
 
 ### Trending or VideoFeed
