@@ -8,6 +8,14 @@ npm i tiktok-signature
 
 ## Usage
 
+### Starting the local http server
+
+First of all you have to start the local http server
+
+```js
+node server.js
+```
+
 ### Module
 
 ```js
