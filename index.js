@@ -1,12 +1,12 @@
 const puppeteer = require("puppeteer-extra")
-const devices = require('puppeteer/DeviceDescriptors');
-const iPhonex = devices['iPhone X'];
+// const devices = require('puppeteer/DeviceDescriptors');
+// const iPhonex = devices['iPhone X'];
 const pluginStealth = require("puppeteer-extra-plugin-stealth")
 
 puppeteer.use(pluginStealth())
 
 class Signer {
-  userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1'
+  userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36'
   args = [
     '--no-sandbox',
     '--disable-setuid-sandbox',
@@ -14,6 +14,7 @@ class Signer {
     '--window-position=0,0',
     '--ignore-certifcate-errors',
     '--ignore-certifcate-errors-spki-list',
+    '--host-rules=MAP tiktok.com 127.0.0.1'
   ]
 
   constructor(userAgent, tac) {
@@ -38,10 +39,11 @@ class Signer {
   async init() {
     this.browser = await puppeteer.launch(this.options);
     this.page = await this.browser.newPage();
-    await this.page.emulate(iPhonex);
+    // await this.page.emulate(iPhonex);
     await this.page.setUserAgent(this.userAgent);
 
-    await this.page.goto('file://' + __dirname + '/index.html', { waitUntil: 'load' });
+    // await this.page.goto('file://' + __dirname + '/index.html', { waitUntil: 'load' });
+    await this.page.goto('http://tiktok.com:8080/index.html', { waitUntil: 'load' });
 
     if (this.tac) {
       await this.page.evaluate((x) => {
