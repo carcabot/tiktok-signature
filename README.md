@@ -8,6 +8,8 @@ npm i tiktok-signature
 
 ## Usage
 
+![](howto.gif)
+
 ### Starting the local http server
 
 First of all you have to start the local http server
