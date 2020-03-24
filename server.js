@@ -24,7 +24,7 @@ fs = require("fs");
           response.write(html);
           response.end();
         })
-        .listen(8080)
+        .listen(8080, '127.0.0.1')
         .on("listening", function() {
           console.log("TikTok Signature server started");
         });
