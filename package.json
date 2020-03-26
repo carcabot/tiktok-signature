@@ -1,7 +1,7 @@
 {
   "name": "tiktok-signature",
   "version": "1.0.4",
-  "description": "Install `jsdom`",
+  "description": "Generate tiktok signature",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
