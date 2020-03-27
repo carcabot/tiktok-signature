@@ -58,7 +58,7 @@ class Signer {
     await this.page.emulate(emulateTemplate);
     await this.page.setUserAgent(this.userAgent);
 
-    await this.page.goto("https://www.tiktok.com/@memes?lang=en", {
+    await this.page.goto("https://www.tiktok.com/trending?lang=en", {
       waitUntil: "load"
     });
 

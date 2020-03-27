@@ -1,6 +1,5 @@
 const Signer = require("./index");
 const http = require("http");
-fs = require("fs");
 
 (async function main() {
   try {
@@ -10,10 +9,10 @@ fs = require("fs");
       .createServer()
       .listen(8080, "127.0.0.1")
       .on("listening", function() {
-        console.log("TikTok Signature server v2 started");
+        console.log("TikTok Signature server started");
       });
 
-    signer.init();
+    signer.init(); // !?
 
     server.on("request", (request, response) => {
       if (request.method === "POST" && request.url === "/signature") {
