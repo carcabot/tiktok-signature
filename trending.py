@@ -1,15 +1,15 @@
 import requests
 
-signature = "By8a6gAgEBz40OUVwgjMBwcvG.AAFlK"
+signature = "N6m0yAAgEBqA7E95U.nQgjeptdAAGlF"
 
 referer = "https://www.tiktok.com/@ondymikula/video/6757762109670477061"
 
-url = "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=&lang=" + \
+url = "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" + \
     "&_signature=" + signature
 request = requests.get(url, headers={"method": "GET",
                                 "accept-encoding": "gzip, deflate, br",
                                 "Referer": referer,
-                                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36"
+                                "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"
                                 })
 
 data = request.json()

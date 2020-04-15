@@ -78,7 +78,7 @@ class Signer {
       }
 
       if (typeof b.sign !== "function") {
-        throw "Not found function";
+        throw "No function found";
       }
 
       window.generateSignature = function generateSignature(url) {
