@@ -1,7 +1,5 @@
 ## Installation
 
-Install `puppeteer`
-
 ```bash
 npm i tiktok-signature
 ```
