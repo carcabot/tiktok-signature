@@ -10,13 +10,21 @@ npm i tiktok-signature
 
 ![](howto.gif)
 
-### Starting the local http server
+### Generating signatures dynamically
 
-First of all you have to start the local http server
+To generate signatures dynamically this repo comes with an integrated http server (listen.js) which accepts POST requests to http://localhost:8080/signature with url in request body.
+
+You have to start the server
 
 ```js
-node server.js
+node listen.js
 ```
+Request signature
+
+```sh
+curl -d "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" http://localhost:8080/signature
+```
+
 
 ### Module
 
@@ -46,7 +54,7 @@ npm i puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
 Now you can generate the token using
 
 ```bash
-node browser.js "tiktok url" # service url
+node browser.js "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid="
 ```
 
 The response tokne should look like this
@@ -61,12 +69,6 @@ root@localhost: VIm6dAAgEBYZFjzZxqkSy1SJu2AAAlc
 
 ```
 https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=
-```
-
-### Comments
-
-```
-https://m.tiktok.com/share/item/comment/list?id=<owner id here>&count=50&cursor=0
 ```
 
 ### Video feed
