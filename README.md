@@ -52,7 +52,7 @@ npm i puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
 Now you can generate the token using
 
 ```bash
-node browser.js "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid="
+node browser.js "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp="
 ```
 
 The response tokne should look like this
@@ -66,7 +66,7 @@ root@localhost: VIm6dAAgEBYZFjzZxqkSy1SJu2AAAlc
 ### Trending or VideoFeed
 
 ```
-https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=
+https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp=
 ```
 
 ### Video feed
@@ -82,11 +82,11 @@ You can test it using
 ```python
 import requests
 
-signature = "s0Ju9AAgEBCwzpufd4dd9bNCb-AAO0V"
+signature = "oKxAeAAgEBgX6bvJMQKua6CsQWAAP4r"
 
 referer = "https://www.tiktok.com/@ondymikula/video/6757762109670477061"
 
-url = "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" + \
+url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp=" + \
     "&_signature=" + signature
 request = requests.get(url, headers={"method": "GET",
                                 "accept-encoding": "gzip, deflate, br",
