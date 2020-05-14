@@ -12,7 +12,6 @@ const http = require("http");
         console.log("TikTok Signature server started");
       });
 
-    signer.init(); // !?
 
     server.on("request", (request, response) => {
       if (request.method === "POST" && request.url === "/signature") {
@@ -24,6 +23,7 @@ const http = require("http");
         request.on("end", async function() {
           console.log("Received url: " + url);
 
+          await signer.init(); 
           try {
             const token = await signer.sign(url);
             response.writeHead(200);
@@ -32,14 +32,14 @@ const http = require("http");
           } catch (err) {
             console.log(err);
           }
+
+          await signer.close();
         });
       } else {
         response.statusCode = 404;
         response.end();
       }
     });
-
-    await signer.close();
   } catch (err) {
     console.error(err);
   }

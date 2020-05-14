@@ -1,21 +1,17 @@
-const puppeteer = require("puppeteer-extra");
-const devices = require("puppeteer/DeviceDescriptors");
-const iPhonex = devices["iPhone X"];
-const pluginStealth = require("puppeteer-extra-plugin-stealth");
-
-puppeteer.use(pluginStealth());
+const { webkit, devices } = require ('playwright')
+const iPhone11 = devices['iPhone 11 Pro']
 
 class Signer {
   userAgent =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1";
-  args = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-infobars",
-    "--window-position=0,0",
-    "--ignore-certifcate-errors",
-    "--ignore-certifcate-errors-spki-list"
-  ];
+    args = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-infobars",
+      "--window-position=0,0",
+      "--ignore-certifcate-errors",
+      "--ignore-certifcate-errors-spki-list"
+    ];
 
   constructor(userAgent, tac, browser) {
     if (userAgent) {
@@ -36,28 +32,26 @@ class Signer {
     this.options = {
       args: this.args,
       headless: true,
-      ignoreHTTPSErrors: true,
-      userDataDir: "./tmp"
+      ignoreHTTPSErrors: true
     };
   }
 
   async init() {
     if (!this.browser) {
-      this.browser = await puppeteer.launch(this.options);
+      this.browser = await webkit.launch(this.options);
     }
 
-    this.page = await this.browser.newPage();
-
-    let emulateTemplate = { ...iPhonex };
+    let emulateTemplate = { ...iPhone11 };
     emulateTemplate.viewport.width = getRandomInt(320, 1920);
     emulateTemplate.viewport.height = getRandomInt(320, 1920);
     emulateTemplate.viewport.deviceScaleFactor = getRandomInt(1, 3);
     emulateTemplate.viewport.isMobile = Math.random() > 0.5;
     emulateTemplate.viewport.hasTouch = Math.random() > 0.5;
+    emulateTemplate.userAgent = this.userAgent;
 
-    await this.page.emulate(emulateTemplate);
-    await this.page.setUserAgent(this.userAgent);
+    this.context = await this.browser.newContext(emulateTemplate);
 
+    this.page = await this.context.newPage();
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
       waitUntil: "load"
     });
