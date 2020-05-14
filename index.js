@@ -44,12 +44,14 @@ class Signer {
     let emulateTemplate = { ...iPhone11 };
     emulateTemplate.viewport.width = getRandomInt(320, 1920);
     emulateTemplate.viewport.height = getRandomInt(320, 1920);
-    emulateTemplate.viewport.deviceScaleFactor = getRandomInt(1, 3);
-    emulateTemplate.viewport.isMobile = Math.random() > 0.5;
-    emulateTemplate.viewport.hasTouch = Math.random() > 0.5;
-    emulateTemplate.userAgent = this.userAgent;
 
-    this.context = await this.browser.newContext(emulateTemplate);
+    this.context = await this.browser.newContext({
+      ...emulateTemplate,
+      deviceScaleFactor: getRandomInt(1, 3),
+      isMobile: Math.random() > 0.5,
+      hasTouch: Math.random() > 0.5,
+      userAgent: this.userAgent
+    });
 
     this.page = await this.context.newPage();
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
