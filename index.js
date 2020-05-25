@@ -14,7 +14,7 @@ class Signer {
     "--disable-infobars",
     "--window-position=0,0",
     "--ignore-certifcate-errors",
-    "--ignore-certifcate-errors-spki-list"
+    "--ignore-certifcate-errors-spki-list",
   ];
 
   constructor(userAgent, tac, browser) {
@@ -37,7 +37,7 @@ class Signer {
       args: this.args,
       headless: true,
       ignoreHTTPSErrors: true,
-      userDataDir: "./tmp"
+      userDataDir: "./tmp",
     };
   }
 
@@ -59,11 +59,11 @@ class Signer {
     await this.page.setUserAgent(this.userAgent);
 
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
-      waitUntil: "load"
+      waitUntil: "load",
     });
 
     if (this.tac) {
-      await this.page.evaluate(x => {
+      await this.page.evaluate((x) => {
         window.tac = x;
       }, this.tac);
     }
@@ -81,8 +81,12 @@ class Signer {
         throw "No function found";
       }
 
-      window.generateSignature = function generateSignature(url) {
-        return b.sign({ url: url });
+      window.generateSignature = function generateSignature(url, verifyFp = null) {
+        let newUrl = url;
+        if(verifyFp) {
+          newUrl = newUrl + "&verifyFp=" + verifyFp;
+        }
+        return b.sign({ url: newUrl });
       };
     }, this.tac);
 
@@ -90,8 +94,19 @@ class Signer {
   }
 
   async sign(str) {
-    let res = await this.page.evaluate(`generateSignature("${str}")`);
+    let verifyFp = await this.getVerifyFp();
+    let res = await this.page.evaluate(`generateSignature("${str}", "${verifyFp}")`);
     return res;
+  }
+
+  async getVerifyFp() {
+    var content = await this.page._client.send("Network.getAllCookies");
+    for (let cookie of content.cookies) {
+      if (cookie.name == "s_v_web_id") {
+        return cookie.value;
+      }
+    }
+    return null;
   }
 
   async close() {
