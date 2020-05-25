@@ -33,7 +33,7 @@ const signer = new Signer(); // Create new signer
 await signer.init(); // Create page with. Returns promise
 
 const signature = await signer.sign("tiktok url"); // Get sign for your url. Returns promise
-const token = await signer.verifyFp(); // Get verification token for your url. Returns promise
+const token = await signer.getVerifyFp(); // Get verification token for your url. Returns promise
 
 await signer.close(); // Close browser. Returns promise
 ```
