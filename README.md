@@ -52,13 +52,13 @@ npm i puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
 Now you can generate the token using
 
 ```bash
-node browser.js "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp="
+node browser.js "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233"
 ```
 
 The response tokne should look like this
 
 ```sh
-root@localhost: VIm6dAAgEBYZFjzZxqkSy1SJu2AAAlc
+root@localhost: {"signature":"DujjbAAgEBW5rRjddk.Jbw7o4nAAFAo","verifyFp":"verify_kamf6ehv_80g0FE87_GAoN_4PgQ_9w6P_xgcNXK53gx2W"}
 ```
 
 ## Fetch service url
@@ -66,7 +66,7 @@ root@localhost: VIm6dAAgEBYZFjzZxqkSy1SJu2AAAlc
 ### Trending or VideoFeed
 
 ```
-https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp=
+https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233
 ```
 
 ### Video feed
@@ -83,10 +83,12 @@ You can test it using
 import requests
 
 signature = "oKxAeAAgEBgX6bvJMQKua6CsQWAAP4r"
+verifyFp = ""
 
 referer = "https://www.tiktok.com/@ondymikula/video/6757762109670477061"
 
-url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp=" + \
+url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233" + \
+    "&verifyFp=" + verifyFp + \
     "&_signature=" + signature
 request = requests.get(url, headers={"method": "GET",
                                 "accept-encoding": "gzip, deflate, br",

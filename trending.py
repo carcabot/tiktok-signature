@@ -13,10 +13,12 @@ import requests
 # ANALYTICS: 9
 
 signature = "oKxAeAAgEBgX6bvJMQKua6CsQWAAP4r"
+verifyFp = ""
 
 referer = "https://www.tiktok.com/@ondymikula/video/6757762109670477061"
 
-url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233&verifyFp=" + \
+url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233" + \
+    "&verifyFp=" + verifyFp + \
     "&_signature=" + signature
 
 request = requests.get(url, headers={"method": "GET",
