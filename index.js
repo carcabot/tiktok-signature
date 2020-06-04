@@ -69,15 +69,8 @@ class Signer {
     }
 
     await this.page.evaluate(() => {
-      var b = {};
-      for (let x of window.webpackJsonp) {
-        if (typeof x[1]["duD4"] === "function") {
-          x[1]["duD4"](null, b);
-          break;
-        }
-      }
-
-      if (typeof b.sign !== "function") {
+      
+      if (typeof window.byted_acrawler.sign !== "function") {
         throw "No function found";
       }
 
@@ -86,7 +79,7 @@ class Signer {
         if(verifyFp) {
           newUrl = newUrl + "&verifyFp=" + verifyFp;
         }
-        return b.sign({ url: newUrl });
+        return window.byted_acrawler.sign({ url: newUrl });
       };
     }, this.tac);
 
