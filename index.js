@@ -1,9 +1,5 @@
-const puppeteer = require("puppeteer-extra");
-const devices = require("puppeteer/DeviceDescriptors");
-const iPhonex = devices["iPhone X"];
-const pluginStealth = require("puppeteer-extra-plugin-stealth");
-
-puppeteer.use(pluginStealth());
+const { webkit, devices } = require("playwright");
+const iPhone11 = devices["iPhone 11 Pro"];
 
 class Signer {
   userAgent =
@@ -36,28 +32,28 @@ class Signer {
     this.options = {
       args: this.args,
       headless: true,
-      ignoreHTTPSErrors: true,
-      userDataDir: "./tmp",
+      ignoreHTTPSErrors: true
     };
   }
 
   async init() {
     if (!this.browser) {
-      this.browser = await puppeteer.launch(this.options);
+      this.browser = await webkit.launch(this.options);
     }
 
-    this.page = await this.browser.newPage();
-
-    let emulateTemplate = { ...iPhonex };
+    let emulateTemplate = { ...iPhone11 };
     emulateTemplate.viewport.width = getRandomInt(320, 1920);
     emulateTemplate.viewport.height = getRandomInt(320, 1920);
-    emulateTemplate.viewport.deviceScaleFactor = getRandomInt(1, 3);
-    emulateTemplate.viewport.isMobile = Math.random() > 0.5;
-    emulateTemplate.viewport.hasTouch = Math.random() > 0.5;
 
-    await this.page.emulate(emulateTemplate);
-    await this.page.setUserAgent(this.userAgent);
+    this.context = await this.browser.newContext({
+      ...emulateTemplate,
+      deviceScaleFactor: getRandomInt(1, 3),
+      isMobile: Math.random() > 0.5,
+      hasTouch: Math.random() > 0.5,
+      userAgent: this.userAgent,
+    });
 
+    this.page = await this.context.newPage();
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
       waitUntil: "load",
     });
@@ -69,14 +65,16 @@ class Signer {
     }
 
     await this.page.evaluate(() => {
-      
       if (typeof window.byted_acrawler.sign !== "function") {
         throw "No function found";
       }
 
-      window.generateSignature = function generateSignature(url, verifyFp = null) {
+      window.generateSignature = function generateSignature(
+        url,
+        verifyFp = null
+      ) {
         let newUrl = url;
-        if(verifyFp) {
+        if (verifyFp) {
           newUrl = newUrl + "&verifyFp=" + verifyFp;
         }
         return window.byted_acrawler.sign({ url: newUrl });
@@ -88,13 +86,16 @@ class Signer {
 
   async sign(str) {
     let verifyFp = await this.getVerifyFp();
-    let res = await this.page.evaluate(`generateSignature("${str}", "${verifyFp}")`);
+    let res = await this.page.evaluate(
+      `generateSignature("${str}", "${verifyFp}")`
+    );
     return res;
   }
 
   async getVerifyFp() {
-    var content = await this.page._client.send("Network.getAllCookies");
-    for (let cookie of content.cookies) {
+    var content = await this.context.cookies();
+    
+    for (let cookie of content) {
       if (cookie.name == "s_v_web_id") {
         return cookie.value;
       }

@@ -50,7 +50,7 @@ new Signer(null, "123"); // Set tac to 123
 Install dependencies
 
 ```bash
-npm i puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
+npm i playwright
 ```
 
 Now you can generate the token using
