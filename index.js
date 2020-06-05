@@ -31,8 +31,9 @@ class Signer {
 
     this.options = {
       args: this.args,
+      ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
       headless: true,
-      ignoreHTTPSErrors: true
+      ignoreHTTPSErrors: true,
     };
   }
 
@@ -57,6 +58,7 @@ class Signer {
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
       waitUntil: "load",
     });
+    await this.page.click(".swiper-wrapper");
 
     if (this.tac) {
       await this.page.evaluate((x) => {
@@ -65,6 +67,11 @@ class Signer {
     }
 
     await this.page.evaluate(() => {
+      window.onload = function () {
+        var element = document.getElementById("video");
+        console.log(element);
+        element.muted = "muted";
+      };
       if (typeof window.byted_acrawler.sign !== "function") {
         throw "No function found";
       }
@@ -94,7 +101,6 @@ class Signer {
 
   async getVerifyFp() {
     var content = await this.context.cookies();
-    
     for (let cookie of content) {
       if (cookie.name == "s_v_web_id") {
         return cookie.value;
