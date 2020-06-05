@@ -30,7 +30,7 @@ class Signer {
     this.args.push(`--user-agent="${this.userAgent}"`);
 
     this.options = {
-      args: this.args,
+      // args: this.args,
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
       headless: true,
       ignoreHTTPSErrors: true,
