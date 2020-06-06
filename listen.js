@@ -7,13 +7,13 @@ const http = require("http");
 
     const server = http
       .createServer()
-      .listen(8080, "127.0.0.1")
+      .listen(8080)
       .on("listening", function () {
         console.log("TikTok Signature server started");
       });
 
     // Uncomment if you want to auto-exit this application after a period of time
-    // Supervisord will attempt to re-open it if are used
+    // If you use PM2 or Supervisord, it will attempt to open it ( in this way tac token will be refreshed)
     // setTimeout(function () {
     //   server.close(() => {
     //     console.log("Server shutdown completed.");

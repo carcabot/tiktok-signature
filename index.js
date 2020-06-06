@@ -30,7 +30,7 @@ class Signer {
     this.args.push(`--user-agent="${this.userAgent}"`);
 
     this.options = {
-      // args: this.args,
+      args: [],
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
       headless: true,
       ignoreHTTPSErrors: true,
@@ -58,7 +58,8 @@ class Signer {
     await this.page.goto("https://www.tiktok.com/trending?lang=en", {
       waitUntil: "load",
     });
-    await this.page.click(".swiper-wrapper");
+    // Uncomment the following line for unwanted audio
+    // await this.page.click(".swiper-wrapper");
 
     if (this.tac) {
       await this.page.evaluate((x) => {
@@ -67,11 +68,7 @@ class Signer {
     }
 
     await this.page.evaluate(() => {
-      window.onload = function () {
-        var element = document.getElementById("video");
-        console.log(element);
-        element.muted = "muted";
-      };
+
       if (typeof window.byted_acrawler.sign !== "function") {
         throw "No function found";
       }

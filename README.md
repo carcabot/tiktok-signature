@@ -21,14 +21,38 @@ To generate signatures dynamically this repo comes with an integrated http serve
 You have to start the server
 
 ```js
-node listen.js
+npm start
 ```
+
 Request signature
 
 ```sh
 curl -d "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" http://localhost:8080/signature
 ```
 
+## Docker
+
+##### Build
+
+```sh
+docker build . -t tiktok-signature
+```
+
+##### Run
+
+```sh
+docker run -v $(pwd):/usr/app tiktok-signature
+```
+`tac token` can expire and signatures are no longer valid, to avoid this uncomment the following lines in `listen.js`. 
+
+```js
+// setTimeout(function () {
+//   server.close(() => {
+//     console.log("Server shutdown completed.");
+//     process.exit(1);
+//   });
+// }, 1 * 60 * 60 * 1000);
+```
 
 ### Module
 
