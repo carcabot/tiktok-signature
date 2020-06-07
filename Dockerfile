@@ -1,7 +1,7 @@
 #tiktok-signature
 FROM ubuntu:bionic AS tiktok_signature.build
 
-WORKDIR /usr/app
+WORKDIR /usr
 
 # 1. Install node12
 RUN apt-get update && apt-get install -y curl && \
@@ -41,7 +41,7 @@ RUN apt-get install -y libdbus-glib-1-2 \
 
 # 5. Copying required files
 
-COPY package*.json ./
+COPY ./ ./
 RUN npm i
 
 EXPOSE 8080
