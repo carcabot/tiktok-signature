@@ -41,8 +41,10 @@ RUN apt-get install -y libdbus-glib-1-2 \
 
 # 5. Copying required files
 
-COPY ./ ./
+ADD package.json package.json
+ADD package-lock.json package-lock.json
 RUN npm i
+ADD . .
 
 EXPOSE 8080
 CMD [ "pm2-runtime", "listen.js" ]
