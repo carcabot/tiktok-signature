@@ -55,7 +55,7 @@ class Signer {
     });
 
     this.page = await this.context.newPage();
-    await this.page.goto("https://www.tiktok.com/trending?lang=en", {
+    await this.page.goto("https://www.tiktok.com/@rihanna?lang=en", {
       waitUntil: "load",
     });
     // Uncomment the following line for unwanted audio
