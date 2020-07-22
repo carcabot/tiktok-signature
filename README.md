@@ -89,7 +89,7 @@ Now you can generate the token using
 node browser.js "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233"
 ```
 
-The response tokne should look like this
+The response token should look like this
 
 ```sh
 root@localhost: {"signature":"DujjbAAgEBW5rRjddk.Jbw7o4nAAFAo","verifyFp":"verify_kamf6ehv_80g0FE87_GAoN_4PgQ_9w6P_xgcNXK53gx2W"}
