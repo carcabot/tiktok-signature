@@ -36,9 +36,11 @@ const http = require("http");
           try {
             const verifyFp = await signer.getVerifyFp();
             const token = await signer.sign(url);
+            const cookies = await signer.getCookies();
             let output = JSON.stringify({
               signature: token,
               verifyFp: verifyFp,
+              cookies: cookies
             });
             response.writeHead(200, { "Content-Type": "application/json" });
             response.end(output);
