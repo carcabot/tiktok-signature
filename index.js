@@ -106,6 +106,10 @@ class Signer {
     return null;
   }
 
+  async getCookies() {
+    return this.page.evaluate('document.cookie;');
+  }
+
   async close() {
     if (this.browser && !this.isExternalBrowser) {
       await this.browser.close();
