@@ -44,6 +44,12 @@ RUN apt-get install -y libdbus-glib-1-2 \
 ADD package.json package.json
 ADD package-lock.json package-lock.json
 RUN npm i
+
+# 6.Add by linqisong
+RUN apt-get install -y libgstreamer1.0-0 \
+    libgstreamer-gl1.0-0 \
+    libgstreamer-plugins-bad1.0-0
+
 ADD . .
 
 EXPOSE 8080
