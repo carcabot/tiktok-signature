@@ -73,6 +73,8 @@ class Signer {
         throw "No function found";
       }
 
+      document.write("") // clear the page, for reduce cpu usage
+
       window.generateSignature = function generateSignature(
         url,
         verifyFp = null
@@ -84,6 +86,8 @@ class Signer {
         return window.byted_acrawler.sign({ url: newUrl });
       };
     }, this.tac);
+
+    this.initialized = true;
 
     return this;
   }

@@ -21,7 +21,17 @@ const http = require("http");
     //   });
     // }, 1 * 60 * 60 * 1000);
 
-    signer.init(); // !?
+    //signer.init(); // !?
+
+    signer.init().finally(() => {
+      if (!signer.initialized) {
+        console.log("seems singer init failed, exiting.");
+        process.exit(1);
+      }
+    }).catch(() => {
+      console.log("seems singer init failed, exiting.");
+      process.exit(1);
+    });
 
     server.on("request", (request, response) => {
       if (request.method === "POST" && request.url === "/signature") {
@@ -47,6 +57,10 @@ const http = require("http");
             console.log("Sent result: " + output);
           } catch (err) {
             console.log(err);
+            if (signer.initialized && err.message.indexOf("Can't find variable: generateSignature") > 0) {
+              console.log("singer not really initialized, exiting.");
+              process.exit(1);
+            }
           }
         });
       } else {
@@ -58,5 +72,6 @@ const http = require("http");
     await signer.close();
   } catch (err) {
     console.error(err);
+    process.exit(1);
   }
 })();
