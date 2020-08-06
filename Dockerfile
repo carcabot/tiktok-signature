@@ -26,7 +26,11 @@ RUN apt-get install -y libwoff1 \
     libevent-2.1-6 \
     libgles2 \
     libgl1 \
-    libvpx5
+    libvpx5 \
+    libgstreamer1.0-0 \
+    libgstreamer-gl1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    libgstreamer-plugins-bad1.0-0
 
 # 3. Install Chromium dependencies
 
