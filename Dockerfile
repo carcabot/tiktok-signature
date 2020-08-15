@@ -30,7 +30,9 @@ RUN apt-get install -y libwoff1 \
     libgstreamer1.0-0 \
     libgstreamer-gl1.0-0 \
     libgstreamer-plugins-base1.0-0 \
-    libgstreamer-plugins-bad1.0-0
+    libgstreamer-plugins-bad1.0-0 \
+    libharfbuzz-icu0 \
+    libopenjp2-7
 
 # 3. Install Chromium dependencies
 
