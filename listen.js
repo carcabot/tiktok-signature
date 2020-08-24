@@ -24,6 +24,15 @@ const http = require("http");
     signer.init(); // !?
 
     server.on("request", (request, response) => {
+      response.setHeader('Access-Control-Allow-Origin', '*');
+      response.setHeader('Access-Control-Allow-Headers', '*');
+
+      if (request.method === 'OPTIONS' ) {
+          response.writeHead(200);
+          response.end();
+          return;
+      }
+
       if (request.method === "POST" && request.url === "/signature") {
         var url = "";
         request.on("data", function (chunk) {
