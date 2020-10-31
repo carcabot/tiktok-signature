@@ -106,6 +106,16 @@ class Signer {
     return null;
   }
 
+  async getCookie(str) {
+    var content = await this.context.cookies();
+    for (let cookie of content) {
+      if (cookie.name == str) {
+        return cookie.value;
+      }
+    }
+    return null;
+  }
+
   async getCookies() {
     return this.page.evaluate('document.cookie;');
   }
