@@ -25,7 +25,7 @@ request = requests.get(url, headers={"method": "GET",
                                      "accept-encoding": "gzip, deflate, br",
                                      "cookie": "tt_webid_v2=1234567890",
                                      "Referer": referer,
-                                     "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"
+                                     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36"
                                      })
 
 data = request.text
