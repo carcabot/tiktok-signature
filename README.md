@@ -41,7 +41,7 @@ docker build . -t tiktok-signature
 ##### Run
 
 ```sh
-docker run -p 8080:8080 -v $(pwd):/usr/app tiktok-signature
+docker run -p 8080:8081 -v $(pwd):/usr/app tiktok-signature
 ```
 `tac token` can expire and signatures are no longer valid, to avoid this uncomment the following lines in `listen.js`. 
 
