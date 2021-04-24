@@ -7,12 +7,16 @@ var url = process.argv[2];
     const signer = new Signer();
     await signer.init();
 
-    const verifyFp = await signer.verifyFp;
-    const token = await signer.sign(url);
+    const sign = await signer.sign(url);
+    const navigator = await signer.navigator();
     let output = JSON.stringify({
-      signature: token,
-      verifyFp: verifyFp,
-      user_agent: signer.userAgent,
+      status: "ok",
+      data: {
+        signature: sign.signature,
+        verify_fp: sign.verify_fp,
+        signed_url: sign.signed_url,
+        navigator: navigator,
+      },
     });
     console.log(output);
     await signer.close();

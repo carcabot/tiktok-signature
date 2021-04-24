@@ -1,4 +1,3 @@
-
 ![NPM](https://img.shields.io/npm/l/tiktok-signature.svg?style=for-the-badge) ![npm](https://img.shields.io/npm/v/tiktok-signature.svg?style=for-the-badge)
 
 ## Installation
@@ -6,9 +5,10 @@
 ```bash
 npm i tiktok-signature
 ```
+
 ---
-<a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
----
+
+## <a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
 ## Usage
 
@@ -43,7 +43,8 @@ docker build . -t tiktok-signature
 ```sh
 docker run -p 8080:8080 -v $(pwd):/usr/app tiktok-signature
 ```
-`tac token` can expire and signatures are no longer valid, to avoid this uncomment the following lines in `listen.js`. 
+
+Keeping a process too much time opened can increase memory usage, to avoid this uncomment the following lines in `listen.js`.
 
 ```js
 // setTimeout(function () {
@@ -63,16 +64,18 @@ const signer = new Signer(); // Create new signer
 await signer.init(); // Create page with. Returns promise
 
 const signature = await signer.sign("tiktok url"); // Get sign for your url. Returns promise
-const token = await signer.getVerifyFp(); // Get verification token for your url. Returns promise
+const navigator = await signer.navigator(); // Retrieve navigator data used when signature was generated
+
+console.log(signature);
+console.log(navigator);
 
 await signer.close(); // Close browser. Returns promise
 ```
 
-You can pass your desired User-Agent and tac on class creation.
+You can pass your desired User-Agent on class creation.
 
 ```js
 new Signer("Mozilla"); // Set User-Agent to Mozilla
-new Signer(null, "123"); // Set tac to 123
 ```
 
 ### CLI
@@ -80,57 +83,44 @@ new Signer(null, "123"); // Set tac to 123
 Install dependencies
 
 ```bash
-npm i playwright
+npm i playwright-chromium
 ```
 
 Now you can generate the token using
 
 ```bash
-node browser.js "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233"
+node browser.js "https://m.tiktok.com/api/post/item_list/?aid=1988&count=30&secUid=MS4wLjABAAAAOUoQXeHglWcq4ca3MwlckxqAe-RIKQ1zlH9NkQkbLAT_h1_6SDc4zyPdAcVdTWZF&cursor=0"
 ```
 
 The response token should look like this
 
-```sh
-root@localhost: {"signature":"DujjbAAgEBW5rRjddk.Jbw7o4nAAFAo","verifyFp":"verify_kamf6ehv_80g0FE87_GAoN_4PgQ_9w6P_xgcNXK53gx2W"}
-```
-
-## Fetch service url
-
-### Trending or VideoFeed
-
-```
-https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233
-```
-
-### Video feed
-
-```
-https://m.tiktok.com/node/video/feed
+```json
+{
+  "status": "ok",
+  "data": {
+    "signature": "_02B4Z6wo00f01DBbvBwAAIBCcuSZt1Pua8AwS7iAAGyZ6e",
+    "verify_fp": "verify_knvz9j2k_miXwiqOy_msam_42g2_BYoa_e4EAbuQnDwqI",
+    "signed_url": "https://m.tiktok.com/api/post/item_list/?aid=1988&count=30&secUid=MS4wLjABAAAAOUoQXeHglWcq4ca3MwlckxqAe-RIKQ1zlH9NkQkbLAT_h1_6SDc4zyPdAcVdTWZF&cursor=0&verifyFp=verify_knvz9j2k_miXwiqOy_msam_42g2_BYoa_e4EAbuQnDwqI&_signature=_02B4Z6wo00f01DBbvBwAAIBCcuSZt1Pua8AwS7iAAGyZ6e",
+    "navigator": {
+      "width": 884,
+      "height": 1244,
+      "deviceScaleFactor": 3,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Windows NT 10.0; Win64; x64) Chrome/90.0.4430.85 Safari/537.36",
+      "browser_language": "en-US",
+      "browser_platform": "MacIntel",
+      "browser_name": "Mozilla",
+      "browser_version": "5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Windows NT 10.0; Win64; x64) Chrome/90.0.4430.85 Safari/537.36"
+    }
+  }
+}
 ```
 
 ## Testing
 
-You can test it using
+You can test it using trending.py file included in this repo.
 
-```python
-import requests
-
-signature = "oKxAeAAgEBgX6bvJMQKua6CsQWAAP4r"
-verifyFp = ""
-
-referer = "https://www.tiktok.com/@ondymikula/video/6757762109670477061"
-
-url = "https://m.tiktok.com/api/item_list/?count=30&id=1&type=5&secUid=&maxCursor=1&minCursor=0&sourceType=12&appId=1233" + \
-    "&verifyFp=" + verifyFp + \
-    "&_signature=" + signature
-request = requests.get(url, headers={"method": "GET",
-                                "accept-encoding": "gzip, deflate, br",
-                                "Referer": referer,
-                                "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"
-                                })
-data = request.json()
-print(data)
+```bash
+python trending.py
 ```
 
 ---
@@ -141,8 +131,7 @@ It's very important that the userAgent be the same when generate and when reques
 
 ---
 
-<a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
----
+## <a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
 ## Contributing
 

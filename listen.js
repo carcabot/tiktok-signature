@@ -1,19 +1,19 @@
 const Signer = require("./index");
 const http = require("http");
-
+const DEFAULT_PORT = 8080;
 (async function main() {
   try {
     const signer = new Signer();
 
     const server = http
       .createServer()
-      .listen(8081)
+      .listen(DEFAULT_PORT)
       .on("listening", function () {
-        console.log("TikTok Signature server started");
+        console.log("TikTok Signature server started on PORT " + DEFAULT_PORT);
       });
 
     // Uncomment if you want to auto-exit this application after a period of time
-    // If you use PM2 or Supervisord, it will attempt to open it ( in this way tac token will be refreshed)
+    // If you use PM2 or Supervisord, it will attempt to open it
     // setTimeout(function () {
     //   server.close(() => {
     //     console.log("Server shutdown completed.");
@@ -21,7 +21,7 @@ const http = require("http");
     //   });
     // }, 1 * 60 * 60 * 1000);
 
-    signer.init(); // !?
+    signer.init();
 
     server.on("request", (request, response) => {
       response.setHeader("Access-Control-Allow-Origin", "*");
@@ -43,16 +43,21 @@ const http = require("http");
           console.log("Received url: " + url);
 
           try {
-            const verifyFp = await signer.verifyFp;
-            const token = await signer.sign(url);
+            const sign = await signer.sign(url);
+            const navigator = await signer.navigator();
+
             let output = JSON.stringify({
-              signature: token,
-              verifyFp: verifyFp,
-              user_agent: signer.userAgent,
+              status: "ok",
+              data: {
+                signature: sign.signature,
+                verify_fp: sign.verify_fp,
+                signed_url: sign.signed_url,
+                navigator: navigator,
+              },
             });
             response.writeHead(200, { "Content-Type": "application/json" });
             response.end(output);
-            console.log("Sent result: " + output);
+            console.log(output);
           } catch (err) {
             console.log(err);
           }
