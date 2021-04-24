@@ -61,7 +61,7 @@ class Signer {
     let LOAD_SCRIPTS = ["signer.js"];
     LOAD_SCRIPTS.forEach(async (script) => {
       await this.context.addInitScript({
-        path: `javascript/${script}`,
+        path: `${__dirname}/javascript/${script}`,
       });
     });
 

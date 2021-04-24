@@ -12,47 +12,35 @@ npm i tiktok-signature
 
 ## Usage
 
-![](howto.gif)
+![](examples/howto.gif)
 
-### Generating signatures dynamically
+### Generating signatures on high performance level
 
-To generate signatures dynamically this repo comes with an integrated http server (listen.js) which accepts POST requests to http://localhost:8080/signature with url in request body.
-
-You have to start the server
-
-```js
-npm start
-```
-
-Request signature
-
-```sh
-curl -d "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" http://localhost:8080/signature
-```
-
-### Docker
-
-##### Build
+#### Build
 
 ```sh
 docker build . -t tiktok-signature
 ```
 
-##### Run
+#### Run
 
 ```sh
-docker run -p 8080:8081 -v $(pwd):/usr/app tiktok-signature
+docker run -p 80:8080 -v $(pwd):/usr/app tiktok-signature
 ```
 
-Keeping a process too much time opened can increase memory usage, to avoid this uncomment the following lines in `listen.js`.
+##### Request signature
+
+```sh
+curl -d "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" \
+http://localhost/signature
+```
+
+To generate signatures dynamically this repo comes with an integrated http server (listen.js) which accepts POST requests to http://localhost/signature with url in request body.
+
+You have to start the server
 
 ```js
-// setTimeout(function () {
-//   server.close(() => {
-//     console.log("Server shutdown completed.");
-//     process.exit(1);
-//   });
-// }, 1 * 60 * 60 * 1000);
+npm start
 ```
 
 ### Module
@@ -120,7 +108,8 @@ The response token should look like this
 You can test it using trending.py file included in this repo.
 
 ```bash
-python trending.py
+pip install
+python examples/trending.py
 ```
 
 ---
@@ -128,6 +117,17 @@ python trending.py
 **NOTE**
 
 It's very important that the userAgent be the same when generate and when request for response.
+
+Keeping a process too much time opened can increase memory usage, to avoid this uncomment the following lines in `listen.js`.
+
+```js
+// setTimeout(function () {
+//   server.close(() => {
+//     console.log("Server shutdown completed.");
+//     process.exit(1);
+//   });
+// }, 1 * 60 * 60 * 1000);
+```
 
 ---
 
