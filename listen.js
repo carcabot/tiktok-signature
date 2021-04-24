@@ -1,15 +1,15 @@
 const Signer = require("./index");
 const http = require("http");
-const DEFAULT_PORT = 8080;
+const PORT = process.env.PORT || 8080;
 (async function main() {
   try {
     const signer = new Signer();
 
     const server = http
       .createServer()
-      .listen(DEFAULT_PORT)
+      .listen(PORT)
       .on("listening", function () {
-        console.log("TikTok Signature server started on PORT " + DEFAULT_PORT);
+        console.log("TikTok Signature server started on PORT " + PORT);
       });
 
     // Uncomment if you want to auto-exit this application after a period of time
