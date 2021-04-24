@@ -1,3 +1,22 @@
+.dockerignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Git
+.git
+.gitignore
+README.md
+
+# Examples
+examples/
+
+# CI
+.github/
+
+# App
+.editorconfig
 node_modules
 examples
 tmp
