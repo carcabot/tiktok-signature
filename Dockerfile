@@ -52,5 +52,5 @@ ADD package-lock.json package-lock.json
 RUN npm i
 ADD . .
 
-EXPOSE 8081
+EXPOSE 8080
 CMD [ "pm2-runtime", "listen.js" ]
