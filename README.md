@@ -135,10 +135,15 @@ Keeping a process too much time opened can increase memory usage, to avoid this 
 
 ## Contributing
 
-If you have a better improvement to this code, let me know ;)
+## Contributing
 
-Hope it helps.
+Bug reports and pull requests are welcome on GitHub at https://github.com/carcabot/tiktok-signature.
 
+1. Fork it (<https://github.com/carcabot/tiktok-signature/fork>)
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some new feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create a new Pull Request
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
