@@ -1,25 +1,21 @@
 const { webkit, devices } = require("playwright-webkit");
 const iPhone11 = devices["iPhone 11 Pro"];
+const fs = require("fs");
 
 class Signer {
   userAgent =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Windows NT 10.0; Win64; x64) Chrome/90.0.4430.85 Safari/537.36";
   args = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
+    "--headless",
+    "--disable-blink-features=AutomationControlled",
     "--disable-infobars",
-    "--window-position=0,0",
-    "--ignore-certifcate-errors",
-    "--ignore-certifcate-errors-spki-list",
+    "--window-size=1920,1080",
+    "--start-maximized",
   ];
 
-  constructor(userAgent, tac, browser) {
+  constructor(userAgent, browser) {
     if (userAgent) {
       this.userAgent = userAgent;
-    }
-
-    if (tac) {
-      this.tac = tac;
     }
 
     if (browser) {
@@ -32,7 +28,6 @@ class Signer {
     this.options = {
       args: [],
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
-      headless: true,
       ignoreHTTPSErrors: true,
     };
   }
@@ -54,60 +49,56 @@ class Signer {
       userAgent: this.userAgent,
     });
 
+    // SEND COOKIES
+    // const cookies = fs.readFileSync("config/cookies.json", "utf8");
+    // const deserializedCookies = JSON.parse(cookies);
+    // await this.context.addCookies(deserializedCookies);
+
     this.page = await this.context.newPage();
     await this.page.goto("https://www.tiktok.com/@rihanna?lang=en", {
       waitUntil: "load",
     });
-    // Uncomment the following line for unwanted audio
-    // await this.page.click(".swiper-wrapper");
 
-    if (this.tac) {
-      await this.page.evaluate((x) => {
-        window.tac = x;
-      }, this.tac);
-    }
+    // WRITE ECOOKIES
+    // const cookies = await this.context.cookies();
+    // const cookieJson = JSON.stringify(cookies);
+
+    // fs.writeFileSync("config/cookies.json", cookieJson);
 
     await this.page.evaluate(() => {
-
       if (typeof window.byted_acrawler.sign !== "function") {
-        throw "No function found";
+        throw "No signature function found";
       }
 
-      window.generateSignature = function generateSignature(
-        url,
-        verifyFp = null
-      ) {
-        let newUrl = url;
-        if (verifyFp) {
-          newUrl = newUrl + "&verifyFp=" + verifyFp;
-        }
-        return window.byted_acrawler.sign({ url: newUrl });
+      window.generateSignature = function generateSignature(url) {
+        return window.byted_acrawler.sign({ url: url });
       };
-    }, this.tac);
+    });
 
     return this;
   }
 
-  async sign(str) {
-    let verifyFp = await this.getVerifyFp();
-    let res = await this.page.evaluate(
-      `generateSignature("${str}", "${verifyFp}")`
-    );
+  async sign(url) {
+    // generate valid verifyFp
+    this.verifyFp = await this.generateVerifyFp();
+    url = url + "&verifyFp=" + this.verifyFp;
+    let res = await this.page.evaluate(`generateSignature("${url}")`);
     return res;
   }
 
-  async getVerifyFp() {
-    var content = await this.context.cookies();
-    for (let cookie of content) {
-      if (cookie.name == "s_v_web_id") {
-        return cookie.value;
-      }
-    }
-    return null;
-  }
-
-  async getCookies() {
-    return this.page.evaluate('document.cookie;');
+  async generateVerifyFp() {
+    var e = Date.now();
+    var t = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".split(
+        ""
+      ),
+      e = t.length,
+      n = Date.now().toString(36),
+      r = [];
+    (r[8] = r[13] = r[18] = r[23] = "_"), (r[14] = "4");
+    for (var o = 0, i = void 0; o < 36; o++)
+      r[o] ||
+        ((i = 0 | (Math.random() * e)), (r[o] = t[19 == o ? (3 & i) | 8 : i]));
+    return "verify_" + n + "_" + r.join("");
   }
 
   async close() {

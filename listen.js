@@ -24,13 +24,13 @@ const http = require("http");
     signer.init(); // !?
 
     server.on("request", (request, response) => {
-      response.setHeader('Access-Control-Allow-Origin', '*');
-      response.setHeader('Access-Control-Allow-Headers', '*');
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Headers", "*");
 
-      if (request.method === 'OPTIONS' ) {
-          response.writeHead(200);
-          response.end();
-          return;
+      if (request.method === "OPTIONS") {
+        response.writeHead(200);
+        response.end();
+        return;
       }
 
       if (request.method === "POST" && request.url === "/signature") {
@@ -43,13 +43,12 @@ const http = require("http");
           console.log("Received url: " + url);
 
           try {
-            const verifyFp = await signer.getVerifyFp();
+            const verifyFp = await signer.verifyFp;
             const token = await signer.sign(url);
-            const cookies = await signer.getCookies();
             let output = JSON.stringify({
               signature: token,
               verifyFp: verifyFp,
-              cookies: cookies
+              user_agent: signer.userAgent,
             });
             response.writeHead(200, { "Content-Type": "application/json" });
             response.end(output);
