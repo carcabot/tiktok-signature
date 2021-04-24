@@ -27,12 +27,14 @@ docker build . -t tiktok-signature
 ```sh
 docker run -p 80:8080 -v $(pwd):/usr/app tiktok-signature
 ```
-
+## Example
 ##### Request signature
 
-```sh
-curl -d "https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=" \
-http://localhost/signature
+```
+curl -X POST \
+     -H "Content-type: application/json" \
+     -d 'https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=' \
+     http://localhost/signature
 ```
 
 To generate signatures dynamically this repo comes with an integrated http server (listen.js) which accepts POST requests to http://localhost/signature with url in request body.
@@ -135,8 +137,6 @@ Keeping a process too much time opened can increase memory usage, to avoid this 
 
 ## Contributing
 
-## Contributing
-
 Bug reports and pull requests are welcome on GitHub at https://github.com/carcabot/tiktok-signature.
 
 1. Fork it (<https://github.com/carcabot/tiktok-signature/fork>)
@@ -144,6 +144,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/carcab
 3. Commit your changes (`git commit -am 'Add some new feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create a new Pull Request
+
 ## License
 
-[MIT](https://choosealicense.com/licenses/mit/)
+The lib is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
