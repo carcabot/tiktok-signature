@@ -32,7 +32,6 @@ class Signer {
 
     this.options = {
       args: this.args,
-      headless: false,
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
       ignoreHTTPSErrors: true,
     };
@@ -86,8 +85,8 @@ class Signer {
     // Get the "viewport" of the page, as reported by the page.
     const info = await this.page.evaluate(() => {
       return {
-        width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight,
+        // width: document.documentElement.clientWidth,
+        // height: document.documentElement.clientHeight,
         deviceScaleFactor: window.devicePixelRatio,
         user_agent: window.navigator.userAgent,
         browser_language: window.navigator.language,
