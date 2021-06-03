@@ -110,7 +110,7 @@ The response token should look like this
 You can test it using trending.py file included in this repo.
 
 ```bash
-pip install
+pip install Naked
 python examples/trending.py
 ```
 
