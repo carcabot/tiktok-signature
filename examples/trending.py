@@ -1,5 +1,7 @@
 import json
+import random
 import requests
+import string
 import os.path
 from Naked.toolshed.shell import muterun_js
 
@@ -16,7 +18,10 @@ if response.exitcode == 0:
                                                                      "accept-encoding": "gzip, deflate",
                                                                      "cookie": "tt_webid_v2=1234567890;",
                                                                      "Referer": referer,
-                                                                     "user-agent": signature['data']['navigator']['user_agent']
+                                                                     "user-agent": signature['data']['navigator']['user_agent'],
+                                                                     "": "".join(
+                    random.choice(string.ascii_uppercase + string.ascii_lowercase)
+                    for i in range(92))
                                                                      })
 
     data = request.text
