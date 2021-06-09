@@ -85,8 +85,8 @@ class Signer {
     // Get the "viewport" of the page, as reported by the page.
     const info = await this.page.evaluate(() => {
       return {
-        // width: document.documentElement.clientWidth,
-        // height: document.documentElement.clientHeight,
+        width: document.documentElement.clientWidth ?? null,
+        height: document.documentElement.clientHeight ?? null,
         deviceScaleFactor: window.devicePixelRatio,
         user_agent: window.navigator.userAgent,
         browser_language: window.navigator.language,
@@ -99,6 +99,7 @@ class Signer {
   }
   async sign(url) {
     // generate valid verifyFp
+    let csrf = await this.getCsrfSessionId();
     let verify_fp = Utils.generateVerifyFp();
     let newUrl = url + "&verifyFp=" + verify_fp;
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
@@ -106,8 +107,19 @@ class Signer {
     return {
       signature: token,
       verify_fp: verify_fp,
+      csrf_session: csrf,
       signed_url: signed_url,
     };
+  }
+
+  async getCsrfSessionId() {
+    var content = await this.page.cookies();
+    for (let cookie of content) {
+      if (cookie.name == "csrf_session_id") {
+        return cookie.value;
+      }
+    }
+    return null;
   }
 
   async close() {
