@@ -85,8 +85,6 @@ class Signer {
     // Get the "viewport" of the page, as reported by the page.
     const info = await this.page.evaluate(() => {
       return {
-        width: document.documentElement.clientWidth ?? null,
-        height: document.documentElement.clientHeight ?? null,
         deviceScaleFactor: window.devicePixelRatio,
         user_agent: window.navigator.userAgent,
         browser_language: window.navigator.language,
