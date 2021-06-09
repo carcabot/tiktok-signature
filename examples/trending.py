@@ -21,8 +21,7 @@ if response.exitcode == 0:
                                                                      "user-agent": signature['data']['navigator']['user_agent'],
                                                                      "x-secsdk-csrf-token": "".join(
                     random.choice(string.ascii_uppercase + string.ascii_lowercase)
-                    for i in range(92)),
-                    "csrf_session_id": signature['data']['csrf_session']
+                    for i in range(92))
                                                                      })
 
     data = request.text

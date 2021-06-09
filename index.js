@@ -99,7 +99,7 @@ class Signer {
   }
   async sign(url) {
     // generate valid verifyFp
-    let csrf = await this.getCsrfSessionId();
+    // let csrf = await this.getCsrfSessionId();
     let verify_fp = Utils.generateVerifyFp();
     let newUrl = url + "&verifyFp=" + verify_fp;
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
@@ -107,7 +107,7 @@ class Signer {
     return {
       signature: token,
       verify_fp: verify_fp,
-      csrf_session: csrf,
+      // csrf_session: csrf,
       signed_url: signed_url,
     };
   }
@@ -119,7 +119,7 @@ class Signer {
         return cookie.value;
       }
     }
-    return '5e1a7c11898a47daa38831b7a513ee7f';
+    return null;
   }
 
   async close() {
