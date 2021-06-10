@@ -8,6 +8,17 @@ from Naked.toolshed.shell import muterun_js
 referer = "https://www.tiktok.com/@ondymikula/video/6847563020290346245"
 url = "https://www.tiktok.com/api/post/item_list/?aid=1988&count=30&secUid=MS4wLjABAAAAOUoQXeHglWcq4ca3MwlckxqAe-RIKQ1zlH9NkQkbLAT_h1_6SDc4zyPdAcVdTWZF&cursor=0"
 
+h = requests.head(
+            'https://www.tiktok.com/api/post/item_list/',
+            headers= {
+                "x-secsdk-csrf-version": "1.2.5",
+                "x-secsdk-csrf-request": "1"
+            },
+  )
+
+csrf_session_id = h.cookies["csrf_session_id"]
+csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
+
 response = muterun_js(' '.join([os.path.abspath('browser.js'), "\""+url+"\""]))
 
 if response.exitcode == 0:
@@ -19,8 +30,8 @@ if response.exitcode == 0:
                                                                      "cookie": "tt_webid_v2=1234567890;",
                                                                      "Referer": referer,
                                                                      "user-agent": signature['data']['navigator']['user_agent'],
-                                                                     "csrf_session_id": "61d5ecf4e85e43e9a0b5ea9d9c759e7d",
-                                                                     "x-secsdk-csrf-token": "0001000000013de268bba45ec31dabbe5a6336e53647648d1e811e61cd86f127714dfa611a551686ea5a3b660761"
+                                                                     "csrf_session_id": csrf_session_id,
+                                                                     "x-secsdk-csrf-token": csrf_token
                                                                      })
 
     data = request.text
