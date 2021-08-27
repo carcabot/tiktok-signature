@@ -57,24 +57,24 @@ class Signer {
       ...emulateTemplate,
     });
 
-    let LOAD_SCRIPTS = ["signer.js"];
-    LOAD_SCRIPTS.forEach(async (script) => {
-      await this.context.addInitScript({
-        path: `${__dirname}/javascript/${script}`,
-      });
-    });
-
     this.page = await this.context.newPage();
+
     await this.page.goto(this.default_url, {
       waitUntil: "load",
     });
 
-    await this.page.evaluate(() => {
-      if (typeof window.byted_acrawler.sign !== "function") {
-        throw "No signature function found";
-      }
+    let LOAD_SCRIPTS = ["signer.js"];
+    LOAD_SCRIPTS.forEach(async (script) => {
+      await this.page.addScriptTag({
+        path: `${__dirname}/javascript/${script}`,
+      });
+    });
 
+    await this.page.evaluate(() => {
       window.generateSignature = function generateSignature(url) {
+        if (typeof window.byted_acrawler.sign !== "function") {
+          throw "No signature function found";
+        }
         return window.byted_acrawler.sign({ url: url });
       };
     });
