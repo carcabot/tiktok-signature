@@ -30,7 +30,8 @@ if response.exitcode == 0:
                                                                      "cookie": "tt_webid_v2=1234567890; csrf_session_id=" + csrf_session_id,
                                                                      "Referer": referer,
                                                                      "user-agent": signature['data']['navigator']['user_agent'],
-                                                                     "x-secsdk-csrf-token": csrf_token
+                                                                     "x-secsdk-csrf-token": csrf_token,
+                                                                     "x-tt-params": signature['data']['x-tt-params']
                                                                      })
 
     data = request.text

@@ -27,7 +27,9 @@ docker build . -t tiktok-signature
 ```sh
 docker run -p 80:8080 -v $(pwd):/usr/app tiktok-signature
 ```
+
 ## Example
+
 ##### Request signature
 
 ```
@@ -91,6 +93,7 @@ The response token should look like this
     "signature": "_02B4Z6wo00f01DBbvBwAAIBCcuSZt1Pua8AwS7iAAGyZ6e",
     "verify_fp": "verify_knvz9j2k_miXwiqOy_msam_42g2_BYoa_e4EAbuQnDwqI",
     "signed_url": "https://m.tiktok.com/api/post/item_list/?aid=1988&count=30&secUid=MS4wLjABAAAAOUoQXeHglWcq4ca3MwlckxqAe-RIKQ1zlH9NkQkbLAT_h1_6SDc4zyPdAcVdTWZF&cursor=0&verifyFp=verify_knvz9j2k_miXwiqOy_msam_42g2_BYoa_e4EAbuQnDwqI&_signature=_02B4Z6wo00f01DBbvBwAAIBCcuSZt1Pua8AwS7iAAGyZ6e",
+    "x-tt-params": "1BLhm+0j/AG2Dlsz3v4u4w==",
     "navigator": {
       "width": 884,
       "height": 1244,
