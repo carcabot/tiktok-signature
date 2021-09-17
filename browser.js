@@ -18,6 +18,7 @@ var url = process.argv[2];
         // csrf_session: csrf,
         signed_url: sign.signed_url,
         navigator: navigator,
+        "x-tt-params": sign.x_tt_params,
       },
     });
     console.log(output);
