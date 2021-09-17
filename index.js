@@ -1,3 +1,4 @@
+const url = require("url");
 const { devices, chromium } = require("playwright-chromium");
 const Utils = require("./utils");
 const iPhone11 = devices["iPhone 11 Pro"];
@@ -63,7 +64,7 @@ class Signer {
       waitUntil: "load",
     });
 
-    let LOAD_SCRIPTS = ["signer.js"];
+    let LOAD_SCRIPTS = ["signer.js", "xttparams.js"];
     LOAD_SCRIPTS.forEach(async (script) => {
       await this.page.addScriptTag({
         path: `${__dirname}/javascript/${script}`,
@@ -76,6 +77,13 @@ class Signer {
           throw "No signature function found";
         }
         return window.byted_acrawler.sign({ url: url });
+      };
+
+      window.generateTTParams = function generateTTParams(queryObject) {
+        if (typeof window.genXTTParams !== "function") {
+          throw "No x-tt-params function found";
+        }
+        return window.genXTTParams(queryObject);
       };
     });
     return this;
@@ -95,18 +103,23 @@ class Signer {
     });
     return info;
   }
-  async sign(url) {
+  async sign(link) {
     // generate valid verifyFp
     // let csrf = await this.getCsrfSessionId();
     let verify_fp = Utils.generateVerifyFp();
-    let newUrl = url + "&verifyFp=" + verify_fp;
+    let newUrl = link + "&verifyFp=" + verify_fp;
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
     let signed_url = newUrl + "&_signature=" + token;
+    let queryObject = url.parse(signed_url, true).query;
     return {
       signature: token,
       verify_fp: verify_fp,
       // csrf_session: csrf,
       signed_url: signed_url,
+      x_tt_params: await this.page.evaluate((queryObject) => {
+        console.log(queryObject);
+        return generateTTParams(queryObject);
+      }, queryObject),
     };
   }
 

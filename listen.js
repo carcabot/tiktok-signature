@@ -54,6 +54,7 @@ const PORT = process.env.PORT || 8080;
                 verify_fp: sign.verify_fp,
                 signed_url: sign.signed_url,
                 navigator: navigator,
+                "x-tt-params": sign.x_tt_params,
               },
             });
             response.writeHead(200, { "Content-Type": "application/json" });

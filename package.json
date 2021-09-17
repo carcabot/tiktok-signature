@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/carcabot/tiktok-signature#readme",
   "dependencies": {
-    "playwright-chromium": "^1.10.0"
+    "playwright-chromium": "^1.10.0",
+    "url": "^0.11.0"
   }
 }
