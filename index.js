@@ -117,7 +117,6 @@ class Signer {
       // csrf_session: csrf,
       signed_url: signed_url,
       x_tt_params: await this.page.evaluate((queryObject) => {
-        console.log(queryObject);
         return generateTTParams(queryObject);
       }, queryObject),
     };
