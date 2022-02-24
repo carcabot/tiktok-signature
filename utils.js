@@ -7,6 +7,7 @@ class Utils {
   }
 
   static generateVerifyFp() {
+    return 'verify_5b161567bda98b6a50c0414d99909d4b'; // !!! NOT SURE IF EXPIRE
     var e = Date.now();
     var t = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".split(
         ""
