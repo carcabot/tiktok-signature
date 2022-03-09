@@ -32,6 +32,7 @@ class Signer {
     this.args.push(`--user-agent="${this.userAgent}"`);
 
     this.options = {
+      // headless: false,
       args: this.args,
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
       ignoreHTTPSErrors: true,
@@ -61,7 +62,7 @@ class Signer {
     this.page = await this.context.newPage();
 
     await this.page.goto(this.default_url, {
-      waitUntil: "load",
+      waitUntil: "networkidle",
     });
 
     let LOAD_SCRIPTS = ["signer.js", "xttparams.js"];
