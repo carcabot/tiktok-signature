@@ -1,4 +1,4 @@
-const url = require("url");
+const { createCipheriv } = require('crypto');
 const { devices, chromium } = require("playwright-chromium");
 const Utils = require("./utils");
 const iPhone11 = devices["iPhone 11 Pro"];
@@ -15,6 +15,9 @@ class Signer {
   ];
   // Default TikTok loading page
   default_url = "https://www.tiktok.com/@rihanna?lang=en";
+
+  // Password for xttparams AES encryption
+  password = 'webapp1.0+202106';
 
   constructor(default_url, userAgent, browser) {
     if (default_url) {
@@ -65,7 +68,7 @@ class Signer {
       waitUntil: "networkidle",
     });
 
-    let LOAD_SCRIPTS = ["signer.js", "xttparams.js"];
+    let LOAD_SCRIPTS = ["signer.js"];
     LOAD_SCRIPTS.forEach(async (script) => {
       await this.page.addScriptTag({
         path: `${__dirname}/javascript/${script}`,
@@ -78,13 +81,6 @@ class Signer {
           throw "No signature function found";
         }
         return window.byted_acrawler.sign({ url: url });
-      };
-
-      window.generateTTParams = function generateTTParams(queryObject) {
-        if (typeof window.genXTTParams !== "function") {
-          throw "No x-tt-params function found";
-        }
-        return window.genXTTParams(queryObject);
       };
     });
     return this;
@@ -111,15 +107,14 @@ class Signer {
     let newUrl = link + "&verifyFp=" + verify_fp;
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
     let signed_url = newUrl + "&_signature=" + token;
-    let queryObject = url.parse(signed_url, true).query;
+    let queryString = new URL(signed_url).searchParams.toString();
+
     return {
       signature: token,
       verify_fp: verify_fp,
       // csrf_session: csrf,
       signed_url: signed_url,
-      x_tt_params: await this.page.evaluate((queryObject) => {
-        return generateTTParams(queryObject);
-      }, queryObject),
+      x_tt_params: this.xttparams(queryString)
     };
   }
 
@@ -131,6 +126,14 @@ class Signer {
       }
     }
     return null;
+  }
+
+  xttparams(query_str) {
+    query_str += '&is_encryption=1'
+
+    // Encrypt query string using aes-128-cbc
+    const cipher = createCipheriv("aes-128-cbc", this.password, this.password);
+    return Buffer.concat([cipher.update(query_str), cipher.final()]).toString('base64');
   }
 
   async close() {
