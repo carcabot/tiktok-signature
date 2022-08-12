@@ -48,7 +48,7 @@ const PORT = process.env.PORT || 8080;
             const navigator = await signer.navigator();
 
             let output = JSON.stringify({
-              status: "ok",
+              status: !sign.error ? "ok" : "failed",
               data: {
                 ...sign,
                 navigator: navigator,

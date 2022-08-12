@@ -113,24 +113,31 @@ class Signer {
     });
     return info;
   }
+
   async sign(link) {
-    // generate valid verifyFp
-    let verify_fp = Utils.generateVerifyFp();
-    let newUrl = link + "&verifyFp=" + verify_fp;
-    let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
-    let signed_url = newUrl + "&_signature=" + token;
-    let queryString = new URL(signed_url).searchParams.toString();
-    let bogus = await this.page.evaluate(`generateBogus("${queryString}")`);
-    signed_url += "&X-Bogus=" + bogus;
+    try {
+      // generate valid verifyFp
+      let verify_fp = Utils.generateVerifyFp();
+      let newUrl = link + "&verifyFp=" + verify_fp;
+      let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
+      let signed_url = newUrl + "&_signature=" + token;
+      let queryString = new URL(signed_url).searchParams.toString();
+      let bogus = await this.page.evaluate(`generateBogus("${queryString}")`);
+      signed_url += "&X-Bogus=" + bogus;
 
-
-    return {
-      signature: token,
-      verify_fp: verify_fp,
-      signed_url: signed_url,
-      "x-tt-params": this.xttparams(queryString),
-      "x-bogus": bogus,
-    };
+      return {
+        signature: token,
+        verify_fp: verify_fp,
+        signed_url: signed_url,
+        "x-tt-params": this.xttparams(queryString),
+        "x-bogus": bogus,
+      };
+    } catch (e) {
+      return {
+        error: true,
+        message: e.message,
+      };
+    }
   }
 
   xttparams(query_str) {
