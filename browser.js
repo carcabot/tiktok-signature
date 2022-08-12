@@ -9,12 +9,12 @@ var url = process.argv[2];
 
     const sign = await signer.sign(url);
     const navigator = await signer.navigator();
-    
+
     let output = JSON.stringify({
       status: "ok",
       data: {
         ...sign,
-        ...navigator,
+        navigator: navigator,
       },
     });
     console.log(output);

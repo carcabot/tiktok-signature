@@ -51,7 +51,7 @@ const PORT = process.env.PORT || 8080;
               status: "ok",
               data: {
                 ...sign,
-                ...navigator,
+                navigator: navigator,
               },
             });
             response.writeHead(200, { "Content-Type": "application/json" });
