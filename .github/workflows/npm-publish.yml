@@ -15,7 +15,7 @@ jobs:
       with:
         node-version: 14.4.0
     - name: Publish if version has been updated
-      uses: pascalgn/npm-publish-action@4f4bf159e299f65d21cd1cbd96fc5d53228036df
+      uses: houtianze/npm-publish-action@master
       with: # All of theses inputs are optional
         tag_name: "v%s"
         tag_message: "v%s"
