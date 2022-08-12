@@ -15,7 +15,7 @@ jobs:
       with:
         node-version: 14.4.0
     - name: Publish if version has been updated
-      uses: houtianze/npm-publish-action@master
+      uses: JS-DevTools/npm-publish@v1
       with: # All of theses inputs are optional
         tag_name: "v%s"
         tag_message: "v%s"
