@@ -17,5 +17,6 @@ jobs:
     - name: Publish if version has been updated
       uses: JS-DevTools/npm-publish@v1
       with: # All of theses inputs are optional
-        tag: "v%s"
+        tag: "latest"
         token: ${{ secrets.NPM_AUTH_TOKEN }}
+        access: public
