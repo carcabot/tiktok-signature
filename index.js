@@ -1,4 +1,4 @@
-const { createCipheriv } = require('crypto');
+const { createCipheriv } = require("crypto");
 const { devices, chromium } = require("playwright-chromium");
 const Utils = require("./utils");
 const iPhone11 = devices["iPhone 11 Pro"];
@@ -17,7 +17,7 @@ class Signer {
   default_url = "https://www.tiktok.com/@rihanna?lang=en";
 
   // Password for xttparams AES encryption
-  password = 'webapp1.0+202106';
+  password = "webapp1.0+202106";
 
   constructor(default_url, userAgent, browser) {
     if (default_url) {
@@ -102,7 +102,6 @@ class Signer {
   }
   async sign(link) {
     // generate valid verifyFp
-    // let csrf = await this.getCsrfSessionId();
     let verify_fp = Utils.generateVerifyFp();
     let newUrl = link + "&verifyFp=" + verify_fp;
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
@@ -112,9 +111,8 @@ class Signer {
     return {
       signature: token,
       verify_fp: verify_fp,
-      // csrf_session: csrf,
       signed_url: signed_url,
-      x_tt_params: this.xttparams(queryString)
+      "x-tt-params": this.xttparams(queryString),
     };
   }
 
@@ -129,11 +127,13 @@ class Signer {
   }
 
   xttparams(query_str) {
-    query_str += '&is_encryption=1'
+    query_str += "&is_encryption=1";
 
     // Encrypt query string using aes-128-cbc
     const cipher = createCipheriv("aes-128-cbc", this.password, this.password);
-    return Buffer.concat([cipher.update(query_str), cipher.final()]).toString('base64');
+    return Buffer.concat([cipher.update(query_str), cipher.final()]).toString(
+      "base64"
+    );
   }
 
   async close() {

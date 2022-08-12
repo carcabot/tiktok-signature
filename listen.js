@@ -50,11 +50,8 @@ const PORT = process.env.PORT || 8080;
             let output = JSON.stringify({
               status: "ok",
               data: {
-                signature: sign.signature,
-                verify_fp: sign.verify_fp,
-                signed_url: sign.signed_url,
-                navigator: navigator,
-                "x-tt-params": sign.x_tt_params,
+                ...sign,
+                ...navigator,
               },
             });
             response.writeHead(200, { "Content-Type": "application/json" });

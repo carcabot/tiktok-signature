@@ -47,7 +47,7 @@ async function main() {
   // servers to get the signature back, but your API call params are in the `x-tt-params` header, which is used
   // when making the request to the static URL `TT_REQ_PERM_URL` above. I'm assuming because the library launches
   // a headless browser, it's a local encode.
-  const { x_tt_params: xTtParams } = signature;
+  const { "x-tt-params": xTtParams } = signature;
   const { user_agent: userAgent } = navigator;
 
   const res = await testApiReq({ userAgent, xTtParams });
