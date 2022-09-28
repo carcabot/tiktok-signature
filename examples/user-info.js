@@ -5,14 +5,19 @@ const axios = require('../node_modules/axios'); // NOTE: not adding this to pack
 const USER_UNIQUE_ID = 'tiktok';
   
 // We use Apple, based on the issue comments in the repo, this helps prevent TikTok's captcha from triggering
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.109 Safari/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36 Edg/101.0.1210.53';
 
 const PARAMS = {
   aid: "1988",
 }
-// This the final URL you make a request to for the API call, it is ALWAYS this, do not mistaken it for the signed URL
-const TT_REQ_PERM_URL =
-    `https://www.tiktok.com/node/share/user/@${USER_UNIQUE_ID}/?aid=1988&app_language=en&app_name=tiktok_web&battery_info=1&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Win32&browser_version=5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F104.0.5112.81%20Safari%2F537.36%20Edg%2F104.0.1293.54&channel=tiktok_web&cookie_enabled=true&device_id=7132764148269827589&device_platform=web_pc&focus_state=false&from_page=user&history_len=2&is_fullscreen=false&is_page_visible=true&os=windows&priority_region=&referer=&region=RO&screen_height=1080&screen_width=1920&tz_name=Europe%2FBucharest&verifyFp=verify_l6xh4etd_sOgxjaYJ_yA8A_443j_Abzf_DXcCohMuHsiY&webcast_language=en&msToken=2-YQoDnPcbE-S2LNBdPKY3yFLevlAyymGgmpUV2pTw9wPx8zNenbM3_k6qzpij2fP4lLX60PUD3ioBDLcwtha9ezlAxXIMx4Nf97fTnECSgDJp33R8z9o-JHTrX3rVMGDdOUU8Y=&X-Bogus=DFSzswjEwV0AN9xsS6EXkGXyYJW1&_signature=_02B4Z6wo00001CDFs.AAAIDBA2SdXY0j46Agxb9AAGrU3c`;
+// If you're getting empty results change the verifyFp, msToken, X-Bogus and _signature params
+const queryParams = {
+  aid: '1988',
+  verifyFp:"verify_dca8729afe5c502257ed30b0b070dbdb",
+  msToken:"K8Xf-t_4RZ5n27zHsUPRyDIjpHQtfPeuHSvtbWzz0D0CQkX1UEyEdV0Xgx5BdbFPqKZ2McVCdlo1RM_u3o9FRglKoFa7TLZz2Yhd_fYRgWKhQDAq1TxQwLSTCz7Jp-EzVhopdNFO",
+  "X-Bogus":"DFSzswVOLbUANCTQSwQvy2XyYJAm",
+  _signature:"_02B4Z6wo00001S9DBBwAAIDADOIqsG3-iK0vQwCAAClJd0"
+}
 
 async function main() {
   const signer = new Signer(null, USER_AGENT);
@@ -21,7 +26,7 @@ async function main() {
   const qsObject = new URLSearchParams(PARAMS);
   const qs = qsObject.toString();
 
-  const unsignedUrl = `https://www.tiktok.com/node/share/user/@${USER_UNIQUE_ID}?${qs}`;
+  const unsignedUrl = `https://www.tiktok.com/node/share/user/@${USER_UNIQUE_ID}?${qs}`
   const signature = await signer.sign(unsignedUrl);
   const navigator = await signer.navigator();
   await signer.close();
@@ -40,13 +45,17 @@ async function main() {
 }
 
 async function testApiReq({ userAgent, xTtParams }) {
+
+  const qsObject = new URLSearchParams(queryParams);
+  const qs = qsObject.toString();
+  
   const options = {
     method: 'GET',
     headers: {
       'user-agent': userAgent,
       'x-tt-params': xTtParams,
     },
-    url: TT_REQ_PERM_URL,
+    url: `https://www.tiktok.com/node/share/user/@${USER_UNIQUE_ID}/?${qs}`
   };
   return axios(options);
 }
