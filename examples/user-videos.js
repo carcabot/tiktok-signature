@@ -7,12 +7,12 @@ const SEC_UID =
   "MS4wLjABAAAAQ09e6Ck9CQrQQYAPLehEKMlvVS8XzmGcbNHTGXsXIZSIj7Pe21eYtDq0nzKy6-5V";
 
 // We use Apple, based on the issue comments in the repo, this helps prevent TikTok's captcha from triggering
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36 Edg/101.0.1210.53";
+const TT_REQ_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36 Edg/107.0.1418.35";
 
 // This the final URL you make a request to for the API call, it is ALWAYS this, do not mistaken it for the signed URL
 const TT_REQ_PERM_URL =
-  "https://www.tiktok.com/api/post/item_list/?aid=1988&app_language=en&app_name=tiktok_web&battery_info=1&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Win32&browser_version=5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F104.0.5112.81%20Safari%2F537.36%20Edg%2F104.0.1293.54&channel=tiktok_web&cookie_enabled=true&device_id=7132764148269827589&device_platform=web_pc&focus_state=false&from_page=user&history_len=2&is_fullscreen=false&is_page_visible=true&os=windows&priority_region=&referer=&region=RO&screen_height=1080&screen_width=1920&tz_name=Europe%2FBucharest&verifyFp=verify_l6xh4etd_sOgxjaYJ_yA8A_443j_Abzf_DXcCohMuHsiY&webcast_language=en&msToken=2-YQoDnPcbE-S2LNBdPKY3yFLevlAyymGgmpUV2pTw9wPx8zNenbM3_k6qzpij2fP4lLX60PUD3ioBDLcwtha9ezlAxXIMx4Nf97fTnECSgDJp33R8z9o-JHTrX3rVMGDdOUU8Y=&X-Bogus=DFSzswjEwV0AN9xsS6EXkGXyYJW1&_signature=_02B4Z6wo00001CDFs.AAAIDBA2SdXY0j46Agxb9AAGrU3c";
+  "https://www.tiktok.com/api/post/item_list/?aid=1988&app_language=en&app_name=tiktok_web&battery_info=1&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Win32&browser_version=5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F107.0.0.0%20Safari%2F537.36%20Edg%2F107.0.1418.35&channel=tiktok_web&cookie_enabled=true&device_id=7002566096994190854&device_platform=web_pc&focus_state=false&from_page=user&history_len=3&is_fullscreen=false&is_page_visible=true&os=windows&priority_region=RO&referer=https%3A%2F%2Fexportcomments.com%2F&region=RO&root_referer=https%3A%2F%2Fexportcomments.com%2F&screen_height=1440&screen_width=2560&tz_name=Europe%2FBucharest&verifyFp=verify_lacphy8d_z2ux9idt_xdmu_4gKb_9nng_NNTTTvsFS8ao&webcast_language=en&msToken=7UfjxOYL5mVC8QFOKQRhmLR3pCjoxewuwxtfFIcPweqC05Q6C_qjW-5Ba6_fE5-fkZc0wkLSWaaesA4CZ0LAqRrXSL8b88jGvEjbZPwLIPnHeyQq6VifzyKf5oGCQNw_W4Xq12Q-8KCuyiKGLOw=&X-Bogus=DFSzswVL-XGANHVWS0OnS2XyYJUm&_signature=_02B4Z6wo00001Pf0DlwAAIDB1FUg8jgaqOz39ArAAF6Z72";
 
 const PARAMS = {
   aid: "1988",
@@ -31,7 +31,7 @@ const PARAMS = {
 };
 
 async function main() {
-  const signer = new Signer(null, USER_AGENT);
+  const signer = new Signer(null, TT_REQ_USER_AGENT);
   await signer.init();
 
   const qsObject = new URLSearchParams(PARAMS);
