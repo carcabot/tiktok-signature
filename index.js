@@ -58,6 +58,7 @@ class Signer {
     emulateTemplate.viewport.height = Utils.getRandomInt(320, 1920);
 
     this.context = await this.browser.newContext({
+      bypassCSP: true,
       ...emulateTemplate,
     });
 
