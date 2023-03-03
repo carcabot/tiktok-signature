@@ -74,7 +74,7 @@ class Signer {
       waitUntil: "networkidle",
     });
 
-    let LOAD_SCRIPTS = ["signer.js", "webmssdk.js"];
+    let LOAD_SCRIPTS = ["signer.js", "webmssdk.js", "xbogus.js"];
     LOAD_SCRIPTS.forEach(async (script) => {
       await this.page.addScriptTag({
         path: `${__dirname}/javascript/${script}`,
@@ -91,10 +91,10 @@ class Signer {
       };
 
       window.generateBogus = function generateBogus(params) {
-        if (typeof window._0x32d649 !== "function") {
+        if (typeof window.generateBogus !== "function") {
           throw "No X-Bogus function found";
         }
-        return window._0x32d649(params);
+        return window.generateBogus(params);
       };
       return this;
     });
@@ -121,7 +121,7 @@ class Signer {
     let token = await this.page.evaluate(`generateSignature("${newUrl}")`);
     let signed_url = newUrl + "&_signature=" + token;
     let queryString = new URL(signed_url).searchParams.toString();
-    let bogus = await this.page.evaluate(`generateBogus("${queryString}")`);
+    let bogus = await this.page.evaluate(`generateBogus("${queryString}","${this.userAgent}")`);
     signed_url += "&X-Bogus=" + bogus;
 
 
