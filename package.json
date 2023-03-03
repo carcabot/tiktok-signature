@@ -1,6 +1,6 @@
 {
   "name": "tiktok-signature",
-  "version": "1.7.3",
+  "version": "1.8.0",
   "description": "Generate TikTok Signature",
   "main": "index.js",
   "scripts": {
