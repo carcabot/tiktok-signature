@@ -25,8 +25,8 @@ async function main() {
   const signer = new Signer(null, USER_AGENT);
   await signer.init();
 
-  const totalComments = 100; // replace with the total number of comments for the video
-  const maxCount = 10;
+  const totalComments = 574; // replace with the total number of comments for the video
+  const maxCount = 50;
   const numRequests = Math.ceil(totalComments / maxCount);
 
   const comments = [];
