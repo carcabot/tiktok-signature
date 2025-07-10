@@ -1,4 +1,4 @@
-const Signer = require("./index");
+import Signer from "./index.js";
 
 var url = process.argv[2];
 

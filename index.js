@@ -1,6 +1,11 @@
-const { createCipheriv } = require("crypto");
-const { devices, chromium } = require("playwright-chromium");
-const Utils = require("./utils");
+import { createCipheriv } from "crypto";
+import { devices, chromium } from "playwright-chromium";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import Utils from "./utils.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const iPhone11 = devices["iPhone 11 Pro"];
 class Signer {
   userAgent =
@@ -34,6 +39,7 @@ class Signer {
     this.args.push(`--user-agent="${this.userAgent}"`);
 
     this.options = {
+      // executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
       headless: true,
       args: this.args,
       ignoreDefaultArgs: ["--mute-audio", "--hide-scrollbars"],
@@ -91,10 +97,10 @@ class Signer {
       };
 
       window.generateBogus = function generateBogus(params) {
-        if (typeof window.generateBogus !== "function") {
+        if (typeof window.byted_crawler.frontierSign !== "function") {
           throw "No X-Bogus function found";
         }
-        return window.generateBogus(params);
+        return window.byted_crawler.frontierSign(params);
       };
       return this;
     });
@@ -155,4 +161,4 @@ class Signer {
   }
 }
 
-module.exports = Signer;
+export default Signer;

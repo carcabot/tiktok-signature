@@ -25,7 +25,13 @@ docker build . -t tiktok-signature
 #### Run
 
 ```sh
-docker run -p 80:8080 -v $(pwd):/usr/app tiktok-signature
+docker run -p 8080:8080 tiktok-signature
+```
+
+#### Or use Docker Compose
+
+```sh
+docker-compose up -d
 ```
 
 ## Example
@@ -36,7 +42,7 @@ docker run -p 80:8080 -v $(pwd):/usr/app tiktok-signature
 curl -X POST \
      -H "Content-type: application/json" \
      -d 'https://m.tiktok.com/share/item/list?secUid=&id=&type=5&count=30&minCursor=0&maxCursor=0&shareUid=' \
-     http://localhost/signature
+     http://localhost:8080/signature
 ```
 
 To generate signatures dynamically this repo comes with an integrated http server (listen.js) which accepts POST requests to http://localhost/signature with url in request body.
@@ -47,10 +53,10 @@ You have to start the server
 npm start
 ```
 
-### Module
+### Module (ES Module)
 
 ```js
-const Signer = require("tiktok-signature"); // Import package
+import Signer from "tiktok-signature"; // Import package
 
 const signer = new Signer(); // Create new signer
 await signer.init(); // Create page with. Returns promise
@@ -75,7 +81,7 @@ new Signer("Mozilla"); // Set User-Agent to Mozilla
 Install dependencies
 
 ```bash
-npm i playwright-chromium
+npm install
 ```
 
 Now you can generate the token using

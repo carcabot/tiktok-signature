@@ -1,8 +1,9 @@
 {
   "name": "tiktok-signature",
-  "version": "1.9.2",
+  "version": "2.0.0",
   "description": "Generate TikTok Signature",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node listen.js"
@@ -23,7 +24,14 @@
   },
   "homepage": "https://github.com/carcabot/tiktok-signature#readme",
   "dependencies": {
+    "fs": "^0.0.1-security",
+    "happy-dom": "^17.4.3",
+    "path": "^0.12.7",
     "playwright": "^1.41.2",
-    "playwright-chromium": "^1.41.2"
+    "playwright-chromium": "^1.41.2",
+    "url": "^0.11.4"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }

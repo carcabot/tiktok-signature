@@ -22,4 +22,4 @@ class Utils {
     return "verify_" + n + "_" + r.join("");
   }
 }
-module.exports = Utils;
+export default Utils;

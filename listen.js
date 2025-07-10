@@ -1,10 +1,9 @@
-const Signer = require("./index");
-const http = require("http");
+import Signer from "./index.js";
+import http from "http";
 const PORT = process.env.PORT || 8080;
 (async function main() {
   try {
     const signer = new Signer();
-    const start = new Date();
 
     const server = http
       .createServer()
@@ -58,14 +57,13 @@ const PORT = process.env.PORT || 8080;
             response.end(output);
             console.log(output);
           } catch (err) {
-            console.log(err);
-            // Uncomment if you want to auto-exit this application when an error thrown
-            // If you use PM2 or Supervisord, it will attempt to open it
-            // var timeElapsed = new Date() - start;
-            // console.info("Execution time: %dms", timeElapsed);
-            // if (timeElapsed > 2500) {
-            //   process.exit(1);
-            // }
+            console.error("Error in signing:", err);
+
+            // Optional: Exit on error
+            server.close(() => {
+              console.log("Server closed due to error.");
+              process.exit(1);
+            });
           }
         });
       } else {
@@ -76,6 +74,8 @@ const PORT = process.env.PORT || 8080;
 
     await signer.close();
   } catch (err) {
-    console.error(err);
+    console.error("Critical error:", err);
+    process.exit(1); // Exit if the main process throws an error
+
   }
 })();

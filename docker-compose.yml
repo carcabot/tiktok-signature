@@ -1,12 +1,11 @@
-version: "2.4"
-
 services:
   server:
     build:
       context: .
       dockerfile: Dockerfile
-    image: tiktok-signature:1.0.0
+    image: tiktok-signature:2.0.0
     environment:
       PORT: 8080
     ports:
       - 8080:8080
+    restart: unless-stopped
