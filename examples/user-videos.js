@@ -1,6 +1,6 @@
-const Signer = require("..");
-const axios = require("axios"); // NOTE: not adding this to package.json, you'll need to install it manually
-const querystring = require('querystring');
+import Signer from "../index.js";
+import axios from "axios"; // NOTE: not adding this to package.json, you'll need to install it manually
+import querystring from "querystring";
 
 // Get your SEC_UID from https://t.tiktok.com/api/user/detail/?aid=1988&uniqueId=username&language=it
 // where `username` is your TikTok username.
@@ -32,23 +32,43 @@ const PARAMS = {
 const mergedParams = { ...parsedQuery, ...PARAMS };
 
 async function main() {
+  console.log("🚀 Starting TikTok User Videos API example");
+  console.log("👤 SEC UID:", SEC_UID.substring(0, 20) + "...");
+  
   const signer = new Signer(null, TT_REQ_USER_AGENT);
+  console.log("🌐 User Agent:", TT_REQ_USER_AGENT);
+  
+  console.log("⏳ Initializing signer...");
   await signer.init();
+  console.log("✅ Signer initialized");
 
   const qsObject = new URLSearchParams(mergedParams);
   const qs = qsObject.toString();
+  console.log("📝 Query string:", qs.substring(0, 100) + "...");
 
   const unsignedUrl = `https://www.tiktok.com/api/post/item_list/?${qs}`;
+  console.log("🔗 Unsigned URL:", unsignedUrl.substring(0, 100) + "...");
+  
+  console.log("✍️ Signing URL...");
   const signature = await signer.sign(unsignedUrl);
+  console.log("📋 Signature:", signature.signature.substring(0, 20) + "...");
+  
   const navigator = await signer.navigator();
+  console.log("🧭 Navigator data collected");
+  
+  console.log("🔒 Closing signer...");
   await signer.close();
 
   const { "x-tt-params": xTtParams, signed_url } = signature;
   const { user_agent: userAgent } = navigator;
+  console.log("🔑 X-TT-Params:", xTtParams.substring(0, 20) + "...");
+  console.log("🌐 Final signed URL:", signed_url.substring(0, 100) + "...");
 
+  console.log("📡 Making API request...");
   const res = await testApiReq({ userAgent, xTtParams, signed_url });
   const { data } = res;
-  console.log(data);
+  console.log("✅ API Response received");
+  console.log("📊 Data:", data);
 }
 
 async function testApiReq({ userAgent, xTtParams, signed_url }) {

@@ -1,5 +1,5 @@
-const Signer = require("..");
-const axios = require("axios"); // NOTE: not adding this to package.json, you'll need to install it manually
+import Signer from "../index.js";
+import axios from "axios"; // NOTE: not adding this to package.json, you'll need to install it manually
 
 // Get your SEC_UID from https://t.tiktok.com/api/user/detail/?aid=1988&uniqueId=username&language=it
 // where `username` is your TikTok username.
@@ -31,15 +31,31 @@ const PARAMS = {
 };
 
 async function main() {
+  console.log("🚀 Starting TikTok User Music API example");
+  console.log("🎵 Music ID:", musicID);
+  
   const signer = new Signer(null, USER_AGENT);
+  console.log("🌐 User Agent:", USER_AGENT);
+  
+  console.log("⏳ Initializing signer...");
   await signer.init();
+  console.log("✅ Signer initialized");
 
   const qsObject = new URLSearchParams(PARAMS);
   const qs = qsObject.toString();
+  console.log("📝 Query string:", qs.substring(0, 100) + "...");
 
   const unsignedUrl = `https://m.tiktok.com/api/music/item_list/?${qs}`;
+  console.log("🔗 Unsigned URL:", unsignedUrl.substring(0, 100) + "...");
+  
+  console.log("✍️ Signing URL...");
   const signature = await signer.sign(unsignedUrl);
+  console.log("📋 Signature:", signature.signature.substring(0, 20) + "...");
+  
   const navigator = await signer.navigator();
+  console.log("🧭 Navigator data collected");
+  
+  console.log("🔒 Closing signer...");
   await signer.close();
 
   // We don't take the `signed_url` from the response, we use the `x-tt-params` header instead because TikTok has
@@ -49,16 +65,21 @@ async function main() {
   // a headless browser, it's a local encode.
   const { "x-tt-params": xTtParams } = signature;
   const { user_agent: userAgent } = navigator;
+  console.log("🔑 X-TT-Params:", xTtParams.substring(0, 20) + "...");
+  console.log("🌐 Final User Agent:", userAgent);
 
+  console.log("📡 Making API request to permanent URL...");
   const res = await testApiReq({ userAgent, xTtParams });
   const { data } = res;
-  console.log(data);
+  console.log("✅ API Response received");
+  console.log("📊 Data:", data);
 }
 
 async function testApiReq({ userAgent, xTtParams }) {
   const options = {
     method: "GET",
     headers: {
+      "user-agent": userAgent,
       "x-tt-params": xTtParams,
     },
     url: TT_REQ_PERM_URL,
