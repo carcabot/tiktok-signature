@@ -21,5 +21,22 @@ class Utils {
         ((i = 0 | (Math.random() * e)), (r[o] = t[19 == o ? (3 & i) | 8 : i]));
     return "verify_" + n + "_" + r.join("");
   }
+
+  static generateDeviceId() {
+    // Generate a 19-digit device ID similar to TikTok's format
+    const timestamp = Date.now().toString();
+    const random = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+    return '7' + timestamp.slice(-9) + random;
+  }
+
+  static generateMsToken() {
+    // Generate msToken similar to TikTok's format
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    let result = '';
+    for (let i = 0; i < 107; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
 }
 export default Utils;
