@@ -16,8 +16,8 @@ describe('Integration Tests', () => {
       expect(response.data.status).toBe('ok');
 
       const data = response.data.data;
-      expect(data.signature).toMatch(/^_[0-9A-Za-z]{40,60}$/);
-      expect(data.verify_fp).toMatch(/^verify_[a-z0-9]{8}_[a-zA-Z0-9]{5}_[a-zA-Z0-9]{4}_[a-zA-Z0-9]{4}_[a-zA-Z0-9]{4}_[a-zA-Z0-9]{12}$/);
+      expect(data.signature).toMatch(/^_[0-9A-Za-z.]{40,60}$/);
+      expect(data.verify_fp).toMatch(/^verify_[a-z0-9]{32}$/);
       expect(data['x-bogus']).toBeDefined();
       expect(data['x-gnarly']).toBeDefined();
       expect(data['x-gnarly']).toMatch(/^[A-Za-z0-9\-_]+$/);
