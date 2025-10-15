@@ -29,7 +29,7 @@
   "dependencies": {
     "axios": "^1.12.2",
     "fs": "^0.0.1-security",
-    "happy-dom": "^17.4.3",
+    "happy-dom": "^20.0.2",
     "path": "^0.12.7",
     "playwright": "^1.41.2",
     "playwright-chromium": "^1.41.2",
