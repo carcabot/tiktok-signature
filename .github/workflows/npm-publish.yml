@@ -2,21 +2,21 @@ name: npm-publish
 on:
   push:
     branches:
-      - master # Change this to your default branch
+      - master
 jobs:
   npm-publish:
     name: npm-publish
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@master
+      uses: actions/checkout@v4
     - name: Set up Node.js
-      uses: actions/setup-node@master
+      uses: actions/setup-node@v4
       with:
-        node-version: 14.4.0
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org'
     - name: Publish if version has been updated
-      uses: JS-DevTools/npm-publish@v1
-      with: # All of theses inputs are optional
-        tag: "latest"
+      uses: JS-DevTools/npm-publish@v3
+      with:
         token: ${{ secrets.NPM_AUTH_TOKEN }}
         access: public
