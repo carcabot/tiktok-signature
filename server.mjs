@@ -32,8 +32,14 @@ puppeteer.use(StealthPlugin());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8080;
 
-// User agent - Chrome on Linux produces working DFSz signatures
-const DEFAULT_UA = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
+// Custom user data directory to avoid filling /tmp
+const USER_DATA_DIR = path.join(__dirname, '.chrome-profile');
+
+// User agent - Safari on macOS
+const DEFAULT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15';
+
+// Current active user agent (can be overridden per-request)
+let currentUserAgent = DEFAULT_UA;
 
 // Proxy configuration from environment
 const PROXY_ENABLED = process.env.PROXY_ENABLED === 'true' && process.env.PROXY_HOST;
@@ -64,6 +70,10 @@ let isReady = false;
 let generationCount = 0;
 let initMethod = null;
 let lastInitTime = null;
+
+// Auto-refresh configuration to avoid blocks
+const MAX_GENERATIONS_BEFORE_REFRESH = 500; // Restart browser after this many signatures
+const MAX_SESSION_AGE_MS = 30 * 60 * 1000;  // Restart browser after 30 minutes
 
 // Request queue for sequential processing (prevents concurrent access to browser page)
 const requestQueue = [];
@@ -177,10 +187,16 @@ async function initBrowser() {
             console.log('[Server] Proxy disabled - direct connection');
         }
 
+        // Ensure user data directory exists
+        if (!fs.existsSync(USER_DATA_DIR)) {
+            fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+        }
+
         browser = await puppeteer.launch({
             headless: 'new',
             executablePath: getChromePath(),
             args: browserArgs,
+            userDataDir: USER_DATA_DIR,
             ignoreDefaultArgs: ['--enable-automation']
         });
 
@@ -197,10 +213,10 @@ async function initBrowser() {
         await page.setUserAgent(DEFAULT_UA);
         await page.setViewport({ width: 1920, height: 1080 });
 
-        // Apply platform override to match browser_platform param
+        // Apply platform override to match Safari on macOS
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'platform', {
-                get: () => 'Linux x86_64',
+                get: () => 'MacIntel',
                 configurable: true
             });
         });
@@ -323,7 +339,39 @@ async function closeBrowser() {
         browser = null;
         page = null;
     }
+
+    // Clean up user data directory to prevent disk space accumulation
+    try {
+        if (fs.existsSync(USER_DATA_DIR)) {
+            fs.rmSync(USER_DATA_DIR, { recursive: true, force: true });
+            console.log('[Server] Cleaned up browser profile directory');
+        }
+    } catch (e) {
+        console.error('[Server] Error cleaning up profile:', e.message);
+    }
+
     console.log('[Server] Browser closed, all state reset');
+}
+
+/**
+ * Check if the browser session should be refreshed based on age or generation count
+ */
+function shouldRefreshSession() {
+    if (!lastInitTime) return false;
+
+    const sessionAge = Date.now() - new Date(lastInitTime).getTime();
+
+    if (generationCount >= MAX_GENERATIONS_BEFORE_REFRESH) {
+        console.log(`[Server] Session refresh needed: ${generationCount} generations reached`);
+        return true;
+    }
+
+    if (sessionAge >= MAX_SESSION_AGE_MS) {
+        console.log(`[Server] Session refresh needed: ${Math.round(sessionAge / 60000)} minutes elapsed`);
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -334,6 +382,15 @@ async function ensurePageReady() {
         if (!browser || !page) {
             throw new Error('Browser or page not initialized');
         }
+
+        // Check if session should be refreshed to avoid blocks
+        if (shouldRefreshSession()) {
+            console.log('[Server] Proactive session refresh...');
+            await closeBrowser();
+            await initBrowser();
+            return true;
+        }
+
         await page.mainFrame();
         return true;
     } catch (e) {
@@ -348,15 +405,19 @@ async function ensurePageReady() {
 /**
  * Generate signed URL for any TikTok URL
  * Triggers fetch, SDK signs it, we capture and abort
+ * @param {string} targetUrl - The URL to sign
+ * @param {string|null} userAgent - Optional custom user agent to return in response
  */
-async function generateSignedUrl(targetUrl) {
-    return queueSignatureRequest(() => _generateSignedUrlInternal(targetUrl));
+async function generateSignedUrl(targetUrl, userAgent = null) {
+    return queueSignatureRequest(() => _generateSignedUrlInternal(targetUrl, userAgent));
 }
 
 /**
  * Internal implementation - must be called through queue
+ * @param {string} targetUrl - The URL to sign
+ * @param {string|null} userAgent - Optional custom user agent to return in response
  */
-async function _generateSignedUrlInternal(targetUrl) {
+async function _generateSignedUrlInternal(targetUrl, userAgent = null) {
     await initBrowser();
     await ensurePageReady();
 
@@ -370,14 +431,16 @@ async function _generateSignedUrlInternal(targetUrl) {
     console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
 
     // Use fetch interception - SDK signs fetch requests automatically
-    return _signWithFetchInterception(fetchUrl);
+    return _signWithFetchInterception(fetchUrl, userAgent);
 }
 
 /**
  * Sign URL using fetch interception
  * SDK intercepts fetch and adds signature params (X-Bogus, X-Gnarly)
+ * @param {string} fetchUrl - The URL to sign
+ * @param {string|null} userAgent - Optional custom user agent to return in response
  */
-async function _signWithFetchInterception(fetchUrl) {
+async function _signWithFetchInterception(fetchUrl, userAgent = null) {
     return new Promise(async (resolve, reject) => {
         let signedUrl = null;
         let timeout = null;
@@ -416,7 +479,7 @@ async function _signWithFetchInterception(fetchUrl) {
                     clearTimeout(timeout);
                     await cleanup();
                     generationCount++;
-                    resolve(parseResult(signedUrl));
+                    resolve(parseResult(signedUrl, userAgent));
                 }
             }
 
@@ -444,7 +507,7 @@ async function _signWithFetchInterception(fetchUrl) {
                 await cleanup();
                 if (signedUrl) {
                     generationCount++;
-                    resolve(parseResult(signedUrl));
+                    resolve(parseResult(signedUrl, userAgent));
                 } else {
                     reject(new Error('Timeout waiting for signed URL'));
                 }
@@ -475,7 +538,7 @@ async function _signWithFetchInterception(fetchUrl) {
     });
 }
 
-function parseResult(url) {
+function parseResult(url, userAgent = null) {
     const urlObj = new URL(url);
     const cookieString = cookies
         ? cookies.map(c => `${c.name}=${c.value}`).join('; ')
@@ -487,7 +550,7 @@ function parseResult(url) {
         secUid: urlObj.searchParams.get('secUid'),
         cursor: urlObj.searchParams.get('cursor'),
         deviceId: urlObj.searchParams.get('device_id'),
-        userAgent: DEFAULT_UA,
+        userAgent: userAgent || currentUserAgent,
         cookies: cookieString
     };
 }
@@ -512,6 +575,7 @@ async function handleRequest(req, res) {
     try {
         // Health check
         if (url.pathname === '/health') {
+            const sessionAge = lastInitTime ? Date.now() - new Date(lastInitTime).getTime() : 0;
             res.writeHead(200);
             res.end(JSON.stringify({
                 status: 'ok',
@@ -519,11 +583,15 @@ async function handleRequest(req, res) {
                 initializing: isInitializing,
                 initMethod: initMethod,
                 lastInitTime: lastInitTime,
+                sessionAgeMinutes: Math.round(sessionAge / 60000),
                 generationCount: generationCount,
+                maxGenerationsBeforeRefresh: MAX_GENERATIONS_BEFORE_REFRESH,
+                maxSessionAgeMinutes: MAX_SESSION_AGE_MS / 60000,
                 queueLength: requestQueue.length,
                 isProcessing: isProcessingQueue,
                 localSdkAvailable: !!localSdkContent,
-                proxyEnabled: PROXY_ENABLED
+                proxyEnabled: PROXY_ENABLED,
+                userAgent: currentUserAgent
             }));
             return;
         }
@@ -600,12 +668,16 @@ async function handleRequest(req, res) {
             }
 
             let targetUrl = null;
+            let userAgent = null;
 
             // Try to parse as JSON first
             try {
                 const json = JSON.parse(body);
                 if (json.url) {
                     targetUrl = json.url;
+                }
+                if (json.userAgent) {
+                    userAgent = json.userAgent;
                 }
             } catch (e) {
                 // Body might be a direct URL string
@@ -617,11 +689,11 @@ async function handleRequest(req, res) {
 
             if (!targetUrl) {
                 res.writeHead(400);
-                res.end(JSON.stringify({ status: 'error', message: 'URL is required in body as JSON { "url": "..." } or plain text' }));
+                res.end(JSON.stringify({ status: 'error', message: 'URL is required in body as JSON { "url": "...", "userAgent": "..." } or plain text URL' }));
                 return;
             }
 
-            const result = await generateSignedUrl(targetUrl);
+            const result = await generateSignedUrl(targetUrl, userAgent);
 
             res.writeHead(200);
             res.end(JSON.stringify({
