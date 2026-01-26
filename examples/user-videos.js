@@ -2,6 +2,7 @@
  * User Videos Example
  *
  * Fetch videos for a specific TikTok user using their secUid.
+ * Uses /signature with external request, falls back to /fetch if needed.
  *
  * Usage:
  *   1. Start the server: npm start
@@ -50,11 +51,32 @@ async function fetchFromTikTok(signedData) {
     }
   });
 
-  if (!response.ok) {
-    throw new Error(`TikTok API returned ${response.status}`);
+  const text = await response.text();
+  if (!text || text.length === 0) {
+    return null; // Empty response, need fallback
   }
 
-  return response.json();
+  return JSON.parse(text);
+}
+
+/**
+ * Fallback: Fetch through browser using /fetch endpoint
+ */
+async function fetchViaBrowser(url) {
+  console.log('Using /fetch fallback (browser-based request)...');
+
+  const response = await fetch(`${SERVER_URL}/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  const result = await response.json();
+  if (result.status !== 'ok') {
+    throw new Error(result.message || 'Fetch failed');
+  }
+
+  return result.data;
 }
 
 /**
@@ -97,7 +119,7 @@ function buildApiUrl(secUid, cursor = 0, count = 30) {
 }
 
 /**
- * Fetch user videos
+ * Fetch user videos with automatic fallback
  */
 async function fetchUserVideos(secUid, cursor = 0, count = 30) {
   const url = buildApiUrl(secUid, cursor, count);
@@ -107,11 +129,21 @@ async function fetchUserVideos(secUid, cursor = 0, count = 30) {
   console.log(`Cursor: ${cursor}`);
   console.log('');
 
-  // Get signed URL
-  const signedData = await getSignedUrl(url);
+  let data;
 
-  // Fetch from TikTok
-  const data = await fetchFromTikTok(signedData);
+  // Try external request first
+  try {
+    const signedData = await getSignedUrl(url);
+    data = await fetchFromTikTok(signedData);
+  } catch (e) {
+    console.log('External request failed:', e.message);
+    data = null;
+  }
+
+  // Fallback to /fetch if external request returned empty
+  if (!data || !data.itemList) {
+    data = await fetchViaBrowser(url);
+  }
 
   return data;
 }
@@ -120,7 +152,7 @@ async function fetchUserVideos(secUid, cursor = 0, count = 30) {
  * Display video results
  */
 function displayResults(data) {
-  if (!data.itemList || data.itemList.length === 0) {
+  if (!data || !data.itemList || data.itemList.length === 0) {
     console.log('No videos found for this user.');
     return;
   }
@@ -171,7 +203,7 @@ async function fetchMultiplePages(secUid, maxPages = 3, videosPerPage = 30) {
 
     const data = await fetchUserVideos(secUid, cursor, videosPerPage);
 
-    if (data.itemList && data.itemList.length > 0) {
+    if (data && data.itemList && data.itemList.length > 0) {
       allVideos.push(...data.itemList);
       console.log(`Fetched ${data.itemList.length} videos (total: ${allVideos.length})\n`);
 

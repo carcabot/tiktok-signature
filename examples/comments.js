@@ -2,6 +2,7 @@
  * Comments Example
  *
  * Fetch comments for a specific TikTok video.
+ * Uses /signature with external request, falls back to /fetch if needed.
  *
  * Usage:
  *   1. Start the server: npm start
@@ -52,11 +53,32 @@ async function fetchFromTikTok(signedData) {
     }
   });
 
-  if (!response.ok) {
-    throw new Error(`TikTok API returned ${response.status}`);
+  const text = await response.text();
+  if (!text || text.length === 0) {
+    return null; // Empty response, need fallback
   }
 
-  return response.json();
+  return JSON.parse(text);
+}
+
+/**
+ * Fallback: Fetch through browser using /fetch endpoint
+ */
+async function fetchViaBrowser(url) {
+  console.log('Using /fetch fallback (browser-based request)...');
+
+  const response = await fetch(`${SERVER_URL}/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  const result = await response.json();
+  if (result.status !== 'ok') {
+    throw new Error(result.message || 'Fetch failed');
+  }
+
+  return result.data;
 }
 
 /**
@@ -98,7 +120,7 @@ function buildCommentsUrl(videoId, cursor = 0, count = 50) {
 }
 
 /**
- * Fetch comments
+ * Fetch comments with automatic fallback
  */
 async function fetchComments(videoId, cursor = 0, count = 50) {
   const url = buildCommentsUrl(videoId, cursor, count);
@@ -107,11 +129,21 @@ async function fetchComments(videoId, cursor = 0, count = 50) {
   console.log(`Cursor: ${cursor}`);
   console.log('');
 
-  // Get signed URL
-  const signedData = await getSignedUrl(url);
+  let data;
 
-  // Fetch from TikTok
-  const data = await fetchFromTikTok(signedData);
+  // Try external request first
+  try {
+    const signedData = await getSignedUrl(url);
+    data = await fetchFromTikTok(signedData);
+  } catch (e) {
+    console.log('External request failed:', e.message);
+    data = null;
+  }
+
+  // Fallback to /fetch if external request returned empty
+  if (!data || !data.comments) {
+    data = await fetchViaBrowser(url);
+  }
 
   return data;
 }
@@ -120,7 +152,7 @@ async function fetchComments(videoId, cursor = 0, count = 50) {
  * Display comments
  */
 function displayResults(data) {
-  if (!data.comments || data.comments.length === 0) {
+  if (!data || !data.comments || data.comments.length === 0) {
     console.log('No comments found for this video.');
     return;
   }

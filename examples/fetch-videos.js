@@ -2,9 +2,7 @@
  * Fetch Videos Example
  *
  * Demonstrates how to fetch TikTok videos using the signature server.
- * 1. Build the TikTok API URL with required parameters
- * 2. Get signed URL from signature server
- * 3. Make external HTTP request to TikTok with signed URL
+ * Uses /signature with external request, falls back to /fetch if needed.
  *
  * Usage:
  *   1. Start the server: npm start
@@ -47,11 +45,32 @@ async function fetchFromTikTok(signedData) {
     }
   });
 
-  if (!response.ok) {
-    throw new Error(`TikTok API returned ${response.status}`);
+  const text = await response.text();
+  if (!text || text.length === 0) {
+    return null; // Empty response, need fallback
   }
 
-  return response.json();
+  return JSON.parse(text);
+}
+
+/**
+ * Fallback: Fetch through browser using /fetch endpoint
+ */
+async function fetchViaBrowser(url) {
+  console.log('Using /fetch fallback (browser-based request)...');
+
+  const response = await fetch(`${SERVER_URL}/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  const result = await response.json();
+  if (result.status !== 'ok') {
+    throw new Error(result.message || 'Fetch failed');
+  }
+
+  return result.data;
 }
 
 async function fetchVideos(secUid) {
@@ -92,17 +111,29 @@ async function fetchVideos(secUid) {
   console.log('Fetching videos for secUid:', secUid.substring(0, 30) + '...');
   console.log('');
 
-  // Step 1: Get signed URL
-  console.log('Step 1: Getting signed URL from signature server...');
-  const signedData = await getSignedUrl(tiktokUrl);
-  console.log(`X-Bogus: ${signedData['x-bogus']}`);
-  console.log('');
+  let data;
 
-  // Step 2: Make request to TikTok
-  console.log('Step 2: Making request to TikTok API...');
-  const data = await fetchFromTikTok(signedData);
+  // Try external request first
+  try {
+    console.log('Step 1: Getting signed URL from signature server...');
+    const signedData = await getSignedUrl(tiktokUrl);
+    console.log(`X-Bogus: ${signedData['x-bogus']}`);
+    console.log('');
 
-  if (data.itemList && data.itemList.length > 0) {
+    console.log('Step 2: Making external request to TikTok API...');
+    data = await fetchFromTikTok(signedData);
+  } catch (e) {
+    console.log('External request failed:', e.message);
+    data = null;
+  }
+
+  // Fallback to /fetch if external request returned empty
+  if (!data || !data.itemList) {
+    console.log('External request returned empty, using fallback...');
+    data = await fetchViaBrowser(tiktokUrl);
+  }
+
+  if (data && data.itemList && data.itemList.length > 0) {
     console.log(`Found ${data.itemList.length} videos!\n`);
 
     data.itemList.slice(0, 5).forEach((video, index) => {
