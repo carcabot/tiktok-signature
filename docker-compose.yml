@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   tiktok-signature:
@@ -23,8 +23,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
