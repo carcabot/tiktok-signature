@@ -21,6 +21,7 @@ If you discover a security vulnerability, please report it by:
    - Suggested fix (if any)
 
 You can expect:
+
 - Acknowledgment within 48 hours
 - Status update within 7 days
 - Credit in the security advisory (unless you prefer anonymity)
@@ -28,6 +29,7 @@ You can expect:
 ## Security Best Practices
 
 When using this package:
+
 - Never expose your server publicly without authentication
 - Use environment variables for sensitive configuration
 - Keep the package updated to the latest version
