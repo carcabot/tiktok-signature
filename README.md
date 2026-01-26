@@ -2,250 +2,369 @@
 
 ![NPM](https://img.shields.io/npm/l/tiktok-signature.svg?style=for-the-badge) ![npm](https://img.shields.io/npm/v/tiktok-signature.svg?style=for-the-badge)
 
-A production-ready TikTok signature generator service that provides API signature generation for TikTok API requests. This service uses Playwright to generate valid signatures required for TikTok API authentication.
+Generate valid **X-Bogus** and **X-Gnarly** signatures for TikTok API requests. This service uses a headless browser with TikTok's own SDK to generate authentic signatures that work reliably.
+
+> **Free & Open Source**: While many services asks for money for TikTok signature generation, this project provides a fully functional solution **completely free**. If you find it useful, consider [buying me a coffee](https://www.buymeacoffee.com/carcabot) ☕
 
 ## Features
 
-- **Production-Ready**: Comprehensive error handling, logging, and monitoring
-- **High Performance**: Optimized browser context reuse for faster signature generation
-- **REST API**: Simple HTTP API for signature generation
-- **Docker Support**: Easy deployment with Docker and Docker Compose
-- **Health Monitoring**: Built-in health check and metrics endpoints
-- **Comprehensive Tests**: Full test coverage with unit and integration tests
-- **TypeScript Support**: Full ES modules support
+- Generates valid X-Bogus and X-Gnarly signatures
+- Uses TikTok's official SDK (injected locally for reliability)
+- Supports proxy configuration for IP rotation
+- Queue system handles concurrent requests safely
+- `/signature` endpoint for scalable external requests (recommended)
+- `/fetch` endpoint as fallback (browser-based, 100% reliable)
+- Docker support for easy deployment
+- Benchmark tool for performance testing
+
+## Important: Proxy Recommendation
+
+For production use, **residential proxies are highly recommended** when making external requests to TikTok. TikTok actively blocks datacenter IPs and implements strict rate limiting.
+
+**Why residential proxies?**
+- Datacenter IPs are often blocked or heavily rate-limited by TikTok
+- Residential IPs appear as regular users and have higher success rates
+- Rotating residential proxies help avoid IP-based bans
+
+**Recommended proxy providers:**
+- Bright Data (formerly Luminati)
+- Oxylabs
+- Smartproxy
+- IPRoyal
+
+Configure your proxy in `.env`:
+```bash
+PROXY_ENABLED=true
+PROXY_HOST=your-residential-proxy.com:port
+PROXY_USER=username
+PROXY_PASS=password
+```
+
+Without proxies, you may experience:
+- Empty responses from TikTok
+- Rate limiting (HTTP 429)
+- IP blocks after high volume requests
 
 ## <a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-## Table of Contents
-
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [API Documentation](#api-documentation)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Testing](#testing)
-- [Docker Deployment](#docker-deployment)
-- [Production Deployment](#production-deployment)
-- [API Endpoints](#api-endpoints)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Installation
-
-```bash
-npm install tiktok-signature
-```
-
-Or clone the repository:
-
-```bash
-git clone https://github.com/carcabot/tiktok-signature.git
-cd tiktok-signature
-npm install
-```
-
 ## Quick Start
 
-### Start the Server
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/carcabot/tiktok-signature.git
+cd tiktok-signature
+
+# Install dependencies
+npm install
+
+# Install browser (Chromium)
+npx puppeteer browsers install chromium
+
+# Copy environment config
+cp .env.example .env
+
+# Start the server
 npm start
 ```
 
-The server will start on port 8080 by default.
-
-### Generate a Signature
+### Using Docker
 
 ```bash
-curl -X POST \
-  -H "Content-type: text/plain" \
-  -d 'https://m.tiktok.com/api/post/item_list/?aid=1988&count=30' \
-  http://localhost:8080/signature
+# Build and run with Docker Compose
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f
 ```
 
-## API Documentation
+## API Endpoints
 
-### POST /signature
+### POST /signature (Recommended)
 
-Generate a signature for a TikTok API URL.
+Generate a signed URL with X-Bogus and X-Gnarly parameters. **This is the recommended endpoint for scalability** - your application makes the actual HTTP requests to TikTok, allowing you to handle rate limiting, retries, and parallel requests.
 
 **Request:**
-- Method: `POST`
-- Content-Type: `text/plain`
-- Body: TikTok API URL (string)
+```bash
+curl -X POST http://localhost:8080/signature \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.tiktok.com/api/post/item_list/?secUid=MS4wLjABAAAA...&cursor=0&count=30"}'
+```
 
 **Response:**
 ```json
 {
   "status": "ok",
   "data": {
-    "signature": "_02B4Z6wo00f01...",
-    "verify_fp": "verify_knvz9j2k_...",
-    "signed_url": "https://m.tiktok.com/api/...",
-    "x-tt-params": "1BLhm+0j/AG2Dlsz3v4u4w==",
-    "x-bogus": "1BLhm+0j/AG2Dlsz3v4u4w==",
+    "signed_url": "https://www.tiktok.com/api/post/item_list/?...&X-Bogus=DFSzswVL...&X-Gnarly=M8tHhQ2H...",
+    "x-bogus": "DFSzswVLXdxANGP5CtmFF2lUrn/4",
+    "x-gnarly": "M8tHhQ2H0Kh/XPpeEgkaXo20D9uW...",
+    "device-id": "7520531026079925774",
+    "cookies": "tt_webid=...; tt_chain_token=...",
     "navigator": {
-      "deviceScaleFactor": 3,
-      "user_agent": "Mozilla/5.0...",
-      "browser_language": "en-US",
-      "browser_platform": "MacIntel",
-      "browser_name": "Mozilla",
-      "browser_version": "5.0..."
+      "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36..."
     }
-  },
-  "metadata": {
-    "processingTime": 234,
-    "timestamp": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+### POST /fetch (Fallback)
+
+Fetch data directly through the browser. This endpoint makes the actual API request through the browser session, bypassing TikTok's bot detection.
+
+**Use this only as a fallback** when external requests with signed URLs fail. This endpoint is slower and less scalable because each request goes through the browser.
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.tiktok.com/api/post/item_list/?secUid=MS4wLjABAAAA..."}'
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "httpStatus": 200,
+  "data": {
+    "itemList": [...],
+    "cursor": 30,
+    "hasMore": true
   }
 }
 ```
 
 ### GET /health
 
-Health check endpoint for monitoring.
+Check server health and status.
+
+```bash
+curl http://localhost:8080/health
+```
 
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "uptime": 3600,
-  "requestCount": 150,
-  "timestamp": "2024-01-01T00:00:00.000Z"
+  "status": "ok",
+  "ready": true,
+  "initMethod": "local-sdk",
+  "generationCount": 150,
+  "queueLength": 0,
+  "proxyEnabled": false
 }
 ```
 
-### GET /metrics
+### GET /restart
 
-Get server metrics and performance data.
+Restart the browser session (useful if signatures stop working).
 
-**Response:**
-```json
-{
-  "requests": {
-    "total": 150,
-    "rate": 0.042
-  },
-  "uptime": {
-    "seconds": 3600,
-    "startTime": "2024-01-01T00:00:00.000Z"
-  },
-  "memory": {
-    "rss": 123456789,
-    "heapTotal": 123456789,
-    "heapUsed": 123456789
-  },
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
+```bash
+curl http://localhost:8080/restart
 ```
 
 ## Configuration
 
-Configuration can be set through environment variables:
+### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `LOG_LEVEL` | Logging level (ERROR, WARN, INFO, DEBUG) | `INFO` |
-| `BROWSER_HEADLESS` | Run browser in headless mode | `true` |
-| `DEFAULT_URL` | Default TikTok page for initialization | `https://www.tiktok.com/@rihanna?lang=en` |
-| `USER_AGENT` | Browser user agent string | Chrome user agent |
-| `CORS_ORIGIN` | CORS allowed origin | `*` |
-| `CORS_HEADERS` | CORS allowed headers | `*` |
-| `TIMEOUT` | Server timeout in milliseconds | `3600000` |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | Server port |
+| `PROXY_ENABLED` | `false` | Enable proxy support |
+| `PROXY_HOST` | - | Proxy host and port (e.g., `proxy.example.com:8080`) |
+| `PROXY_USER` | - | Proxy username |
+| `PROXY_PASS` | - | Proxy password |
+| `PUPPETEER_EXECUTABLE_PATH` | auto | Custom Chrome/Chromium path |
 
-### Example with Environment Variables
+### Example .env file
 
 ```bash
-PORT=3000 LOG_LEVEL=DEBUG npm start
+PORT=8080
+PROXY_ENABLED=true
+PROXY_HOST=proxy.example.com:8080
+PROXY_USER=your_username
+PROXY_PASS=your_password
 ```
 
-## Development
+## Usage Examples
 
-### Project Structure
+### Node.js
 
+```javascript
+async function getTikTokPosts(secUid) {
+  const baseUrl = `https://www.tiktok.com/api/post/item_list/?` +
+    `aid=1988&app_name=tiktok_web&device_platform=web_pc&` +
+    `secUid=${encodeURIComponent(secUid)}&cursor=0&count=30`;
+
+  // Get signed URL
+  const signResponse = await fetch('http://localhost:8080/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: baseUrl })
+  });
+
+  const { data } = await signResponse.json();
+
+  // Make request to TikTok
+  const response = await fetch(data.signed_url, {
+    headers: {
+      'User-Agent': data.navigator.user_agent,
+      'Cookie': data.cookies
+    }
+  });
+
+  return response.json();
+}
 ```
-tiktok-signature/
-├── src/
-│   ├── config.js       # Configuration management
-│   ├── signer.js       # Main signature generation logic
-│   ├── server.js       # HTTP server implementation
-│   ├── validators.js   # Input validation
-│   └── logger.js       # Logging utility
-├── javascript/         # Browser scripts
-│   ├── signer.js
-│   ├── webmssdk.js
-│   └── xbogus.js
-├── examples/          # Usage examples
-├── __tests__/         # Test files
-├── index.js           # Package entry point
-└── listen.js          # Server entry point
+
+### PHP with Guzzle
+
+```php
+<?php
+use GuzzleHttp\Client;
+
+function getTikTokPosts(string $secUid): array
+{
+    $signatureClient = new Client(['base_uri' => 'http://localhost:8080']);
+
+    $baseUrl = 'https://www.tiktok.com/api/post/item_list/?' . http_build_query([
+        'aid' => '1988',
+        'app_name' => 'tiktok_web',
+        'device_platform' => 'web_pc',
+        'secUid' => $secUid,
+        'cursor' => 0,
+        'count' => 30
+    ]);
+
+    // Get signed URL
+    $response = $signatureClient->post('/signature', [
+        'json' => ['url' => $baseUrl]
+    ]);
+
+    $data = json_decode($response->getBody(), true)['data'];
+
+    // Make request to TikTok
+    $tiktokClient = new Client();
+    $response = $tiktokClient->get($data['signed_url'], [
+        'headers' => [
+            'User-Agent' => $data['navigator']['user_agent'],
+            'Cookie' => $data['cookies']
+        ]
+    ]);
+
+    return json_decode($response->getBody(), true);
+}
 ```
 
-### Development Mode
+### Python
+
+```python
+import requests
+
+def get_tiktok_posts(sec_uid: str) -> dict:
+    base_url = f"https://www.tiktok.com/api/post/item_list/?" \
+               f"aid=1988&app_name=tiktok_web&device_platform=web_pc&" \
+               f"secUid={sec_uid}&cursor=0&count=30"
+
+    # Get signed URL
+    sign_response = requests.post(
+        'http://localhost:8080/signature',
+        json={'url': base_url}
+    )
+    data = sign_response.json()['data']
+
+    # Make request to TikTok
+    response = requests.get(
+        data['signed_url'],
+        headers={
+            'User-Agent': data['navigator']['user_agent'],
+            'Cookie': data['cookies']
+        }
+    )
+
+    return response.json()
+```
+
+### Using /fetch endpoint (100% reliable)
+
+If external requests fail, use the `/fetch` endpoint which makes the request through the browser:
+
+```javascript
+async function getTikTokPostsReliable(secUid) {
+  const baseUrl = `https://www.tiktok.com/api/post/item_list/?` +
+    `aid=1988&app_name=tiktok_web&device_platform=web_pc&` +
+    `secUid=${encodeURIComponent(secUid)}&cursor=0&count=30`;
+
+  const response = await fetch('http://localhost:8080/fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: baseUrl })
+  });
+
+  const { data } = await response.json();
+  return data; // Contains itemList directly
+}
+```
+
+## Benchmark
+
+Test signature generation performance:
 
 ```bash
-npm run dev
+# Run benchmark (100 requests, sequential)
+npm run benchmark
+
+# Custom benchmark
+node benchmark.mjs --requests=500 --concurrency=1
+
+# Benchmark /fetch endpoint
+node benchmark.mjs --requests=50 --endpoint=fetch
 ```
 
-## Testing
-
-### Run All Tests
-
-**For unit tests only:**
-```bash
-npm test -- --testPathIgnorePatterns="integration.test.js|server.test.js"
+**Example output:**
 ```
+============================================================
+TikTok Signature Server - Benchmark
+============================================================
+Host:        http://localhost:8080
+Endpoint:    /signature
+Requests:    100
+Concurrency: 1
+============================================================
 
-**For all tests (requires server running):**
-```bash
-# Terminal 1: Start the server
-npm start
+Server ready (init method: local-sdk)
 
-# Terminal 2: Run all tests
-npm test
+Running benchmark...
+
+[####################] 100% (100/100) - 100 ok, 0 failed
+
+============================================================
+RESULTS
+============================================================
+
+Throughput:
+  Total requests:     100
+  Successful:         100 (100.0%)
+  Failed:             0
+  Total time:         8.42s
+  Requests/second:    11.88
+  Requests/minute:    713
+
+Latency:
+  Average:            84ms
+  Min:                75ms
+  Max:                156ms
+  P50 (median):       81ms
+  P95:                108ms
+  P99:                145ms
 ```
-
-### Run Tests with Coverage
-
-```bash
-npm run test:coverage
-```
-
-### Run Tests in Watch Mode
-
-```bash
-npm run test:watch
-```
-
-### Test Structure
-
-- `__tests__/utils.test.js` - Utility function tests
-- `__tests__/signer.test.js` - Signer class unit tests
-- `__tests__/server.test.js` - Server endpoint tests
-- `__tests__/integration.test.js` - End-to-end integration tests
 
 ## Docker Deployment
 
-### Build Docker Image
-
-```bash
-docker build -t tiktok-signature .
-```
-
-### Run with Docker
-
-```bash
-docker run -p 8080:8080 tiktok-signature
-```
-
-### Docker Compose
-
-```bash
-docker-compose up -d
-```
-
-### Docker Compose Configuration
+### docker-compose.yml
 
 ```yaml
 version: '3.8'
@@ -256,8 +375,7 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - LOG_LEVEL=INFO
-      - BROWSER_HEADLESS=true
+      - PROXY_ENABLED=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -266,244 +384,144 @@ services:
       retries: 3
 ```
 
-## Production Deployment
-
-### Performance Considerations
-
-1. **Memory Management**: The service automatically manages browser contexts to prevent memory leaks
-2. **Concurrency**: The server can handle multiple concurrent signature requests
-3. **Health Monitoring**: Use `/health` endpoint for load balancer health checks
-4. **Logging**: Configure `LOG_LEVEL=WARN` or `LOG_LEVEL=ERROR` in production
-5. **Process Management**: Use PM2 or systemd for process management
-
-### PM2 Configuration
-
-```json
-{
-  "name": "tiktok-signature",
-  "script": "./listen.js",
-  "instances": 1,
-  "exec_mode": "fork",
-  "env": {
-    "PORT": 8080,
-    "LOG_LEVEL": "WARN",
-    "NODE_ENV": "production"
-  },
-  "max_memory_restart": "1G",
-  "error_file": "./logs/error.log",
-  "out_file": "./logs/out.log",
-  "log_date_format": "YYYY-MM-DD HH:mm:ss Z"
-}
-```
-
-### Nginx Reverse Proxy
-
-```nginx
-server {
-    listen 80;
-    server_name api.example.com;
-
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## Examples
-
-The `/examples` directory contains comprehensive examples for different TikTok API endpoints:
-
-### Available Examples
-
-#### Core Examples
-- **`hashtag.js`** - Fetch videos for specific hashtags/challenges
-- **`user-info.js`** - Get detailed user profile information
-- **`videos.js`** - Fetch user's video feed
-- **`trending.js`** - Get trending/discover content
-- **`comments.js`** - Fetch video comments and replies
-- **`music.js`** - Fetch music/audio videos
-- **`simple-test.js`** - Basic signature generation test
-
-#### TypeScript Support
-- **`typescript-example.js`** - Compiled TypeScript example
-- **`typescript-example.ts`** - TypeScript source with type definitions
-
-### Quick Start with Examples
+### Running with Docker
 
 ```bash
-# Run basic hashtag example
-node examples/hashtag.js [CHALLENGE_ID]
+# Build and start
+docker compose up -d --build
 
-# Run user info example
-node examples/user-info.js [USERNAME] --videos --search --relationship
+# View logs
+docker compose logs -f
 
-# Run user videos example
-node examples/videos.js [SEC_UID]
-
-# Run trending content example
-node examples/trending.js
-
-# Run comments example
-node examples/comments.js [VIDEO_ID]
-
-# Run music example
-node examples/music.js [MUSIC_ID]
-
-# Run simple test
-node examples/simple-test.js
+# Stop
+docker compose down
 ```
 
-### Node.js Module Usage
+## Production Best Practices
+
+### 1. Use Residential Proxies
+
+TikTok blocks datacenter IPs aggressively. For production workloads:
+
+```bash
+# .env configuration
+PROXY_ENABLED=true
+PROXY_HOST=residential-proxy.example.com:8080
+PROXY_USER=your_username
+PROXY_PASS=your_password
+```
+
+### 2. Use /signature Endpoint (Not /fetch)
+
+The `/signature` endpoint is designed for scalability:
+- Signature generation: ~80ms (handled by signature server)
+- HTTP requests to TikTok: handled by your application (can be parallelized)
 
 ```javascript
-import Signer from "tiktok-signature";
+// Good: Scalable approach
+const signedData = await getSignedUrl(url);
+const response = await fetch(signedData.signed_url, { headers: {...} });
 
-const signer = new Signer();
-await signer.init();
-
-const signature = await signer.sign("https://m.tiktok.com/api/post/item_list/?aid=1988");
-const navigator = await signer.navigator();
-
-console.log(signature);
-console.log(navigator);
-
-await signer.close();
+// Avoid in production: Not scalable
+const response = await fetch('http://localhost:8080/fetch', {...});
 ```
 
-### API Patterns
+### 3. Implement Rate Limiting
 
-The examples demonstrate three main patterns for TikTok API requests:
-
-#### 1. Permanent URL + x-tt-params Only
-```javascript
-// Used for: hashtags, music videos
-const response = await axios({
-  method: "GET",
-  url: PERMANENT_URL, // Static TikTok URL
-  headers: {
-    "user-agent": userAgent,
-    "x-tt-params": xTtParams, // Encrypted parameters
-    "referer": "https://www.tiktok.com/"
-  }
-});
-```
-
-#### 2. Dynamic URL + signed_url
-```javascript
-// Used for: trending content
-const response = await axios({
-  method: "GET",
-  url: signedUrl, // Generated signed URL
-  headers: {
-    "user-agent": userAgent,
-    "referer": "https://www.tiktok.com/"
-  }
-});
-```
-
-#### 3. Permanent URL Merging + Both Headers
-```javascript
-// Used for: user info, user videos, comments
-const response = await axios({
-  method: "GET",
-  url: signedUrl, // Merged permanent + custom parameters
-  headers: {
-    "user-agent": userAgent,
-    "x-tt-params": xTtParams,
-    "referer": "https://www.tiktok.com/" // Or video-specific referer
-  }
-});
-```
-
-### Python Client Example
-
-```python
-import requests
-
-def get_signature(url):
-    response = requests.post(
-        'http://localhost:8080/signature',
-        data=url,
-        headers={'Content-Type': 'text/plain'}
-    )
-    return response.json()
-
-# Example usage
-result = get_signature('https://m.tiktok.com/api/post/item_list/?aid=1988&count=30')
-print(result['data']['signed_url'])
-```
-
-### JavaScript Client Example
+TikTok has rate limits. Implement delays between requests:
 
 ```javascript
-async function getSignature(url) {
-  const response = await fetch('http://localhost:8080/signature', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain',
-    },
-    body: url,
-  });
-
-  return await response.json();
-}
-
-// Example usage
-const result = await getSignature('https://m.tiktok.com/api/post/item_list/?aid=1988');
-console.log(result.data.signed_url);
+// Add delay between requests
+await new Promise(r => setTimeout(r, 1000)); // 1 second delay
 ```
 
-## Error Handling
+### 4. Handle Failures Gracefully
 
-The service provides detailed error messages:
-
-```json
-{
-  "status": "error",
-  "error": {
-    "message": "URL must be a TikTok domain",
-    "code": 400,
-    "timestamp": "2024-01-01T00:00:00.000Z"
+```javascript
+async function fetchWithRetry(url, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const signedData = await getSignedUrl(url);
+      const response = await fetch(signedData.signed_url, {...});
+      if (response.ok) return response.json();
+    } catch (e) {
+      if (i === maxRetries - 1) throw e;
+      await new Promise(r => setTimeout(r, 2000 * (i + 1))); // Exponential backoff
+    }
   }
 }
 ```
 
-Common error codes:
-- `400` - Bad Request (invalid URL or parameters)
-- `404` - Endpoint not found
-- `500` - Internal Server Error
+### 5. Monitor Health
 
-## Security Considerations
+Periodically check server health and restart if needed:
 
-1. **Input Validation**: All URLs are validated and sanitized
-2. **CORS**: Configure CORS appropriately for your use case
-3. **Rate Limiting**: Implement rate limiting in production
-4. **HTTPS**: Use HTTPS in production environments
-5. **Authentication**: Add API key authentication if needed
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Restart browser if issues occur
+curl http://localhost:8080/restart
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Signatures not working
 
-1. **Browser fails to launch**
-   - Ensure Chromium dependencies are installed
-   - Check available system memory
+1. **Restart the browser session:**
+   ```bash
+   curl http://localhost:8080/restart
+   ```
 
-2. **Signature generation fails**
-   - Verify the TikTok URL format
-   - Check server logs for detailed error messages
+2. **Use the /fetch endpoint:** If external requests with signed URLs fail, use `/fetch` which makes requests through the browser.
 
-3. **High memory usage**
-   - Restart the service periodically
-   - Configure memory limits in Docker or PM2
+3. **Check SDK initialization:**
+   ```bash
+   curl http://localhost:8080/health
+   ```
+   Ensure `ready: true` and `initMethod: "local-sdk"`.
+
+### Browser won't start
+
+- Ensure Chromium is installed: `npx puppeteer browsers install chromium`
+- Check `PUPPETEER_EXECUTABLE_PATH` is set correctly
+- On Linux, ensure required libraries are installed
+
+### Proxy not working
+
+- Verify proxy credentials are correct
+- Check proxy host format: `host:port` (no `http://` prefix)
+- Ensure `PROXY_ENABLED=true` is set
+
+## Project Structure
+
+```
+tiktok-signature/
+├── server.mjs          # Main server (new implementation)
+├── benchmark.mjs       # Performance testing tool
+├── javascript/
+│   └── webmssdk_5.1.3.js  # TikTok SDK for signature generation
+├── examples/           # Usage examples
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+## Architecture
+
+The server uses Puppeteer with a stealth plugin to maintain a persistent browser session. TikTok's SDK is injected locally before page load, ensuring reliable signature generation without depending on TikTok's CDN.
+
+**How it works:**
+1. Browser initializes and loads TikTok with local SDK injection
+2. SDK intercepts fetch requests and adds X-Bogus/X-Gnarly signatures
+3. `/signature` endpoint triggers a fetch, captures the signed URL, and returns it
+4. Your application uses the signed URL to make requests to TikTok
+
+**Scalability:**
+- The signature server only handles signature generation (fast, ~80ms per request)
+- Your application handles HTTP requests to TikTok (can be parallelized, retried, etc.)
+- Use residential proxies for your external requests to avoid IP blocks
 
 ## <a href="https://www.buymeacoffee.com/carcabot" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
@@ -514,17 +532,6 @@ Common error codes:
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-### Development Guidelines
-
-- Write tests for new features
-- Follow ES module conventions
-- Update documentation for API changes
-- Ensure all tests pass before submitting PR
-
-## Support
-
-- GitHub Issues: [https://github.com/carcabot/tiktok-signature/issues](https://github.com/carcabot/tiktok-signature/issues)
 
 ## License
 

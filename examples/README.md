@@ -1,241 +1,180 @@
 # TikTok Signature Examples
 
-This directory contains production-ready examples demonstrating different TikTok API endpoints and signature generation patterns.
+These examples demonstrate how to use the TikTok Signature Server to fetch various types of data from TikTok.
 
-## Quick Start
+## How It Works
 
-```bash
-# Start the signature server first (optional for direct usage)
-npm start
+1. **Build TikTok API URL** - Construct the URL with all required parameters
+2. **Get Signed URL** - Send to `/signature` endpoint to get X-Bogus signature
+3. **Make External Request** - Fetch from TikTok using the signed URL with proper headers
 
-# Run any example directly
-node examples/hashtag.js [CHALLENGE_ID]
-node examples/user-info.js [USERNAME] --videos
-node examples/trending.js
-```
+This approach is **scalable** - the signature server only generates signatures, while your application handles the actual HTTP requests.
+
+## Prerequisites
+
+1. Start the signature server:
+   ```bash
+   npm start
+   ```
+
+2. Wait for the server to be ready:
+   ```bash
+   curl http://localhost:8080/health
+   # Should return: {"status":"ok","ready":true,...}
+   ```
 
 ## Available Examples
 
-### Core Examples
-- **`hashtag.js`** - Fetch videos for specific hashtags/challenges
-- **`user-info.js`** - Get detailed user profile information
-- **`videos.js`** - Fetch user's video feed
-- **`music.js`** - Get user's music/audio videos
-- **`trending.js`** - Get trending/discover content
-- **`comments.js`** - Fetch video comments and replies
-- **`simple-test.js`** - Basic signature generation test
+### basic-signature.js
+Simple example showing how to generate a signed URL.
 
-### TypeScript Support
-- **`typescript-example.js`** - Compiled TypeScript example
-- **`typescript-example.ts`** - TypeScript source with type definitions
-
-## Usage Examples
-
-### Hashtag Videos
 ```bash
-# Use default challenge ID
-node examples/hashtag.js
-
-# Use specific challenge ID
-node examples/hashtag.js 1659902394498053
+node examples/basic-signature.js
 ```
 
-### User Information
+### fetch-videos.js
+Fetch videos for a user by secUid.
+
 ```bash
-# Basic user info
+node examples/fetch-videos.js [SEC_UID]
+```
+
+### user-info.js
+Fetch detailed information about a TikTok user by username.
+
+```bash
 node examples/user-info.js tiktok
-
-# User info with videos
-node examples/user-info.js tiktok --videos
-
-# Search for user and include relationship info
-node examples/user-info.js tiktok --search --relationship
+node examples/user-info.js charlidamelio
 ```
 
-### User Videos
+### user-videos.js
+Fetch videos for a specific user using their secUid.
+
 ```bash
-# Use default SEC_UID
-node examples/videos.js
+# Default user
+node examples/user-videos.js
 
-# Use specific SEC_UID
-node examples/videos.js MS4wLjABAAAAv7iSuuXDJGDvJkmH_vz1qkDZYo1apxgzaxdBSeIuPiM
+# Specific user (use secUid from user-info.js)
+node examples/user-videos.js "MS4wLjABAAAA..."
+
+# Fetch multiple pages
+node examples/user-videos.js "MS4wLjABAAAA..." 30 --multi
 ```
 
-### Comments
+### hashtag.js
+Fetch videos for a specific hashtag/challenge.
+
 ```bash
-# Use default video ID
-node examples/comments.js
-
-# Use specific video ID
-node examples/comments.js 7195062981313580293
+# Use challenge ID (not hashtag name)
+node examples/hashtag.js 42164
+node examples/hashtag.js 42164 50
 ```
 
-### Music Videos
-```bash
-# Use default music ID
-node examples/music.js
+### trending.js
+Fetch trending/discover videos.
 
-# Use specific music ID
-node examples/music.js 6972436815763683077
-```
-
-### Trending Content
 ```bash
 node examples/trending.js
+node examples/trending.js 50
 ```
 
-### Simple Test
+### comments.js
+Fetch comments for a specific video.
+
 ```bash
-node examples/simple-test.js
+# Use video ID
+node examples/comments.js 7449547081733992710
+node examples/comments.js 7449547081733992710 100
 ```
 
-### TypeScript Example
+### music.js
+Fetch videos that use a specific sound/music.
+
 ```bash
-# Run compiled TypeScript
-node examples/typescript-example.js
-
-# Compile and run TypeScript (requires ts-node)
-npx ts-node examples/typescript-example.ts
+# Use music ID
+node examples/music.js 7459809498891851526
+node examples/music.js 7459809498891851526 50
 ```
 
-## API Patterns
+### search.js
+Search for videos, users, or hashtags.
 
-The examples demonstrate three main patterns for TikTok API requests:
+```bash
+# Search videos (default)
+node examples/search.js "dance"
 
-### 1. Permanent URL + x-tt-params Only
-Used for: hashtags, music videos
-```javascript
-const response = await axios({
-  method: "GET",
-  url: PERMANENT_URL, // Static TikTok URL
-  headers: {
-    "user-agent": userAgent,
-    "x-tt-params": xTtParams, // Encrypted parameters
-    "referer": "https://www.tiktok.com/"
-  }
-});
+# Search users
+node examples/search.js "charlie" user
+
+# Search hashtags
+node examples/search.js "fyp" hashtag
 ```
 
-### 2. Dynamic URL + signed_url
-Used for: trending content
-```javascript
-const response = await axios({
-  method: "GET",
-  url: signedUrl, // Generated signed URL
-  headers: {
-    "user-agent": userAgent,
-    "referer": "https://www.tiktok.com/"
-  }
-});
-```
+## Finding IDs
 
-### 3. Permanent URL Merging + Both Headers
-Used for: user info, user videos, comments
-```javascript
-const response = await axios({
-  method: "GET",
-  url: signedUrl, // Merged permanent + custom parameters
-  headers: {
-    "user-agent": userAgent,
-    "x-tt-params": xTtParams,
-    "referer": "https://www.tiktok.com/" // Or video-specific referer
-  }
-});
-```
+### SecUid (for user-videos.js)
+1. Run `user-info.js` with the username
+2. The secUid will be displayed in the output
 
-## Direct Module Usage
+### Video ID (for comments.js)
+- From URL: `https://www.tiktok.com/@user/video/1234567890` → ID is `1234567890`
+- Or from `user-videos.js` output
 
-All examples use the Signer class directly:
+### Music ID (for music.js)
+- From URL: `https://www.tiktok.com/music/song-name-1234567890` → ID is `1234567890`
+- Or from video details in `user-videos.js` output
+
+### Challenge ID (for hashtag.js)
+1. Run `search.js "hashtag_name" hashtag`
+2. Use the Challenge ID from the output
+
+## Code Pattern
+
+All examples follow this pattern:
 
 ```javascript
-import Signer from "../index.js";
+// 1. Get signed URL from signature server
+async function getSignedUrl(url) {
+  const response = await fetch('http://localhost:8080/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+  const result = await response.json();
+  return result.data;
+}
 
-const signer = new Signer();
-await signer.init();
-
-const signature = await signer.sign("https://m.tiktok.com/api/post/item_list/?aid=1988");
-const navigator = await signer.navigator();
-
-console.log(signature);
-await signer.close();
-```
-
-## Features
-
-- **Production-Ready**: Comprehensive error handling and logging
-- **Class-Based Architecture**: Clean, maintainable code structure
-- **Enhanced Signature Generation**: X-Bogus and X-Gnarly support
-- **TypeScript Support**: Full type definitions and examples
-- **Flexible Configuration**: Customizable parameters and options
-- **Robust Error Handling**: Detailed error messages and recovery
-- **Performance Optimized**: Efficient browser context management
-
-## Error Handling
-
-All examples include comprehensive error handling:
-
-```javascript
-try {
-  const data = await api.fetchHashtagVideos();
-  api.displayResults(data);
-} catch (error) {
-  console.error("❌ Error:", error.message);
-
-  if (error.response?.status === 404) {
-    console.error("🏷️ Resource not found");
-  } else if (error.response?.status === 403) {
-    console.error("🚫 Access forbidden");
-  }
+// 2. Make request to TikTok with signed URL
+async function fetchFromTikTok(signedData) {
+  const response = await fetch(signedData.signed_url, {
+    headers: {
+      'User-Agent': signedData.navigator.user_agent,
+      'Cookie': signedData.cookies,
+      'Accept': 'application/json',
+      'Referer': 'https://www.tiktok.com/'
+    }
+  });
+  return response.json();
 }
 ```
 
-## Configuration
+## Alternative: /fetch Endpoint
 
-Examples use consistent configuration patterns:
+If external requests fail (due to network restrictions, TLS fingerprinting, etc.), you can use the `/fetch` endpoint as a fallback. This makes requests through the browser but is slower and less scalable:
 
 ```javascript
-const CONFIG = {
-  CHALLENGE_ID: "1659902394498053",
-  USER_AGENT: "Mozilla/5.0...",
-  PERMANENT_URL: "https://www.tiktok.com/api/...",
-  PARAMS: {
-    aid: "1988",
-    count: 30,
-    cursor: 0
-  }
-};
+const response = await fetch('http://localhost:8080/fetch', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: tiktokUrl })
+});
+const result = await response.json();
+// result.data contains TikTok response
 ```
 
-## Best Practices
+## Tips
 
-1. **Always initialize the signer**: `await signer.init()`
-2. **Clean up resources**: `await signer.close()`
-3. **Handle errors gracefully**: Use try/catch blocks
-4. **Use appropriate headers**: Include user-agent and referer
-5. **Respect rate limits**: Add delays between requests
-6. **Validate responses**: Check for expected data structure
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Signer initialization fails**
-   - Ensure Chromium dependencies are installed
-   - Check available system memory
-
-2. **API returns empty results**
-   - Verify IDs exist (challenge ID, SEC_UID, video ID, music ID)
-   - Check for typos in parameters
-
-3. **Rate limiting errors**
-   - Add delays between requests
-   - Use smaller batch sizes
-
-4. **Signature generation fails**
-   - Check console output for detailed errors
-   - Ensure browser can launch properly
-
-## Support
-
-- Main Documentation: [../README.md](../README.md)
-- GitHub Issues: [Report bugs and request features](https://github.com/carcabot/tiktok-signature/issues)
+- **Use `/signature` endpoint** for scalability (recommended)
+- **Use `/fetch` endpoint** only as a fallback when external requests fail
+- Restart browser session with `curl http://localhost:8080/restart` if issues occur
+- TikTok requires many parameters - the examples include all necessary ones

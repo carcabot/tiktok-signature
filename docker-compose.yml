@@ -9,29 +9,22 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - LOG_LEVEL=INFO
-      - BROWSER_HEADLESS=true
-      - NODE_ENV=production
+      - PROXY_ENABLED=${PROXY_ENABLED:-false}
+      - PROXY_HOST=${PROXY_HOST:-}
+      - PROXY_USER=${PROXY_USER:-}
+      - PROXY_PASS=${PROXY_PASS:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    volumes:
-      - ./logs:/app/logs
-    networks:
-      - tiktok-net
+      start_period: 60s
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 1G
+          cpus: '2'
+          memory: 2G
         reservations:
           cpus: '0.5'
           memory: 512M
-
-networks:
-  tiktok-net:
-    driver: bridge

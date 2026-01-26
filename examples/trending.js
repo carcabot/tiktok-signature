@@ -1,372 +1,180 @@
-import Signer from "../index.js";
-import axios from "axios";
-
 /**
- * TikTok Trending Videos API Example
- * Pattern: Basic URL building + signed_url
+ * Trending Videos Example
  *
- * This example demonstrates how to fetch trending/discover content.
- * Uses basic URL building with signed URL approach.
+ * Fetch trending/discover videos from TikTok.
+ *
+ * Usage:
+ *   1. Start the server: npm start
+ *   2. Run: node examples/trending.js [COUNT]
  */
 
-// Configuration
+const SERVER_URL = 'http://localhost:8080';
+
+// Default configuration
 const CONFIG = {
-  // User-Agent helps prevent TikTok's captcha from triggering
-  USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53",
-
-  // Base endpoint for trending content
-  BASE_URL: "https://www.tiktok.com/node/share/discover",
-
-  // Default query parameters
-  DEFAULT_PARAMS: {
-    aid: "1988",
-    app_language: "en",
-    app_name: "tiktok_web",
-    battery_info: "1"
-  }
+  COUNT: 30,
+  DEVICE_ID: '7520531026079925774'
 };
 
-class TrendingAPI {
-  constructor() {
-    this.signer = null;
+/**
+ * Get signed URL from signature server
+ */
+async function getSignedUrl(url) {
+  const response = await fetch(`${SERVER_URL}/signature`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  const result = await response.json();
+  if (result.status !== 'ok') {
+    throw new Error(result.message || 'Signature generation failed');
   }
 
-  async initialize() {
-    console.log("🚀 Initializing TikTok Trending API");
-    console.log("🔥 Fetching trending/discover content");
-    console.log("🌐 User Agent:", CONFIG.USER_AGENT.substring(0, 50) + "...");
-
-    this.signer = new Signer(null, CONFIG.USER_AGENT);
-
-    console.log("⏳ Starting browser and loading TikTok scripts...");
-    await this.signer.init();
-    console.log("✅ Signer initialized successfully");
-  }
-
-  async getSignature(customParams = {}) {
-    // Merge default parameters with custom parameters
-    const params = {
-      ...CONFIG.DEFAULT_PARAMS,
-      ...customParams
-    };
-
-    const queryString = new URLSearchParams(params).toString();
-    const unsignedUrl = `${CONFIG.BASE_URL}?${queryString}`;
-
-    console.log("📝 Query parameters:", Object.keys(params).length, "parameters");
-    console.log("🔗 Unsigned URL:", unsignedUrl.substring(0, 80) + "...");
-
-    console.log("✍️ Generating signature...");
-    const signature = await this.signer.sign(unsignedUrl);
-
-    const navigator = await this.signer.navigator();
-
-    return {
-      signedUrl: signature.signed_url,
-      userAgent: navigator.user_agent,
-      signature: signature.signature,
-      verifyFp: signature.verify_fp,
-      xBogus: signature["x-bogus"]
-    };
-  }
-
-  async fetchTrending(options = {}) {
-    const {
-      category = 'general',
-      count = 20,
-      refreshType = 0,
-      insertIds = ''
-    } = options;
-
-    try {
-      console.log(`🔥 Fetching trending content (category: ${category})`);
-
-      const customParams = {};
-
-      // Add optional parameters
-      if (count !== 20) customParams.count = count;
-      if (refreshType !== 0) customParams.refreshType = refreshType;
-      if (insertIds) customParams.insertIds = insertIds;
-
-      const { signedUrl, userAgent } = await this.getSignature(customParams);
-
-      console.log("🔗 Signed URL generated:", signedUrl.substring(0, 100) + "...");
-      console.log("🌐 Browser User Agent:", userAgent.substring(0, 50) + "...");
-
-      console.log("📡 Making API request with signed URL...");
-      const response = await this.makeRequest(userAgent, signedUrl);
-
-      console.log("✅ API response received successfully");
-      return response.data;
-
-    } catch (error) {
-      console.error("❌ Error fetching trending content:", error.message);
-
-      // Enhanced error handling
-      if (error.response) {
-        console.error("📱 Response status:", error.response.status);
-        console.error("📄 Response headers:", error.response.headers);
-
-        if (error.response.status === 403) {
-          console.error("🚫 Access forbidden - possibly blocked or rate limited");
-        } else if (error.response.status === 429) {
-          console.error("⏰ Rate limited - try again later");
-        }
-      }
-
-      throw error;
-    }
-  }
-
-  async makeRequest(userAgent, signedUrl) {
-    const options = {
-      method: "GET",
-      url: signedUrl,
-      headers: {
-        "user-agent": userAgent,
-        "referer": "https://www.tiktok.com/",
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "en-US,en;q=0.9",
-        "cache-control": "no-cache",
-        "pragma": "no-cache",
-        "sec-ch-ua": '"Chromium";v="105", "Not)A;Brand";v="8"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "x-requested-with": "XMLHttpRequest"
-      },
-      timeout: 30000, // 30 second timeout
-      validateStatus: function (status) {
-        return status < 500; // Resolve only if the status code is less than 500
-      }
-    };
-
-    return axios(options);
-  }
-
-  async cleanup() {
-    if (this.signer) {
-      console.log("🔒 Closing browser...");
-      await this.signer.close();
-      console.log("✅ Cleanup completed");
-    }
-  }
-
-  displayResults(data) {
-    console.log("\n📊 Trending Results Summary:");
-
-    // Handle different response structures
-    let videos = [];
-
-    if (data.itemList) {
-      videos = data.itemList;
-    } else if (data.items) {
-      videos = data.items;
-    } else if (Array.isArray(data)) {
-      videos = data;
-    } else if (data.body && data.body.itemList) {
-      videos = data.body.itemList;
-    } else if (data.body && Array.isArray(data.body)) {
-      // Handle the specific structure: { statusCode: 0, body: [{ exploreList: [...] }, ...] }
-      console.log(`🔍 Found ${data.body.length} explore sections`);
-
-      data.body.forEach((section, sectionIndex) => {
-        if (section.exploreList && Array.isArray(section.exploreList)) {
-          console.log(`   Section ${sectionIndex + 1}: ${section.exploreList.length} items`);
-          videos.push(...section.exploreList);
-        }
-      });
-    }
-
-    if (videos && videos.length > 0) {
-      console.log(`🔥 Found ${videos.length} trending items`);
-
-      // Determine if these are video items or card items
-      const hasCardItems = videos.some(item => item.cardItem);
-
-      if (hasCardItems) {
-        // Handle card-based structure (creators/users)
-        console.log("\n👥 Trending Creators/Content:");
-        videos.slice(0, 10).forEach((item, index) => {
-          const card = item.cardItem;
-          if (card) {
-            console.log(`\n${index + 1}. 🎬 ID: ${card.id || 'N/A'}`);
-            console.log(`   📛 Title: ${card.title || 'N/A'}`);
-            console.log(`   👤 Subtitle: ${card.subTitle || 'N/A'}`);
-            console.log(`   📝 Description: ${card.description || 'No description'}`);
-            console.log(`   🔗 Link: ${card.link || 'N/A'}`);
-            console.log(`   🎭 Type: ${card.type || 'N/A'}`);
-
-            if (card.cover) {
-              console.log(`   🖼️ Cover: ${card.cover.substring(0, 80)}...`);
-            }
-
-            if (card.round !== undefined) {
-              console.log(`   ⭕ Round: ${card.round ? 'Yes' : 'No'}`);
-            }
-
-            if (card.extraInfo) {
-              console.log(`   ℹ️ Extra Info: ${Object.keys(card.extraInfo).length} fields`);
-            }
-          }
-        });
-      } else {
-        // Handle traditional video structure
-        console.log("\n🎬 Trending Videos:");
-        videos.slice(0, 10).forEach((video, index) => {
-          console.log(`\n${index + 1}. 🎬 Video ID: ${video.id || video.aweme_id || 'N/A'}`);
-
-          if (video.author) {
-            console.log(`   👤 Author: @${video.author.uniqueId || video.author.unique_id || 'unknown'}`);
-            console.log(`   ✨ Display Name: ${video.author.nickname || video.author.nick_name || 'N/A'}`);
-          }
-
-          console.log(`   📝 Description: ${(video.desc || video.description || '').substring(0, 60) || 'No description'}${(video.desc || video.description || '').length > 60 ? '...' : ''}`);
-
-          if (video.createTime || video.create_time) {
-            const createTime = video.createTime || video.create_time;
-            console.log(`   📅 Created: ${new Date(createTime * 1000).toLocaleDateString()}`);
-          }
-
-          if (video.stats || video.statistics) {
-            const stats = video.stats || video.statistics;
-            console.log(`   👀 Views: ${(stats.playCount || stats.play_count || 0).toLocaleString()}`);
-            console.log(`   ❤️ Likes: ${(stats.diggCount || stats.digg_count || 0).toLocaleString()}`);
-            console.log(`   💬 Comments: ${(stats.commentCount || stats.comment_count || 0).toLocaleString()}`);
-            console.log(`   🔄 Shares: ${(stats.shareCount || stats.share_count || 0).toLocaleString()}`);
-          }
-
-          if (video.music && video.music.title) {
-            console.log(`   🎵 Music: ${video.music.title}`);
-          }
-
-          if (video.video && video.video.duration) {
-            console.log(`   ⏱️ Duration: ${video.video.duration}s`);
-          }
-
-          // Show hashtags if available
-          if (video.textExtra && video.textExtra.length > 0) {
-            const hashtags = video.textExtra
-              .filter(tag => tag.hashtagName)
-              .map(tag => `#${tag.hashtagName}`)
-              .slice(0, 3)
-              .join(' ');
-            if (hashtags) {
-              console.log(`   🏷️ Tags: ${hashtags}`);
-            }
-          }
-        });
-      }
-
-      // Show additional metadata if available
-      if (data.hasMore !== undefined) {
-        console.log(`\n📄 Has more content: ${data.hasMore ? 'Yes' : 'No'}`);
-      }
-
-      if (data.cursor) {
-        console.log(`🔄 Next cursor: ${data.cursor}`);
-      }
-
-    } else {
-      console.log("📭 No trending content found");
-      console.log("🔍 Raw response structure:");
-      console.log(Object.keys(data));
-
-      // Provide more detailed debugging for the specific structure
-      if (data.statusCode !== undefined) {
-        console.log(`📊 Status Code: ${data.statusCode}`);
-      }
-
-      if (data.body && Array.isArray(data.body)) {
-        console.log(`📋 Body contains ${data.body.length} sections:`);
-        data.body.forEach((section, index) => {
-          console.log(`   Section ${index + 1}:`, Object.keys(section));
-          if (section.exploreList) {
-            console.log(`     - exploreList: ${section.exploreList.length} items`);
-          }
-          if (section.pageState) {
-            console.log(`     - pageState:`, Object.keys(section.pageState));
-          }
-        });
-      }
-    }
-  }
-
-  // Method to get trending hashtags/challenges
-  async fetchTrendingHashtags() {
-    try {
-      console.log("🏷️ Fetching trending hashtags...");
-
-      const customParams = {
-        ...CONFIG.DEFAULT_PARAMS,
-        from_page: "hashtag",
-        aid: "1988"
-      };
-
-      // Use a different endpoint for hashtags
-      const queryString = new URLSearchParams(customParams).toString();
-      const unsignedUrl = `https://www.tiktok.com/node/share/hashtag?${queryString}`;
-
-      console.log("🔗 Hashtag URL:", unsignedUrl.substring(0, 80) + "...");
-
-      const signature = await this.signer.sign(unsignedUrl);
-      const navigator = await this.signer.navigator();
-
-      const response = await this.makeRequest(navigator.user_agent, signature.signed_url);
-
-      console.log("✅ Hashtag response received");
-      return response.data;
-
-    } catch (error) {
-      console.error("❌ Error fetching trending hashtags:", error.message);
-      throw error;
-    }
-  }
+  return result.data;
 }
 
-// Main execution function
-async function main(options = {}) {
-  const api = new TrendingAPI();
+/**
+ * Make request to TikTok API with signed URL
+ */
+async function fetchFromTikTok(signedData) {
+  const response = await fetch(signedData.signed_url, {
+    headers: {
+      'User-Agent': signedData.navigator.user_agent,
+      'Cookie': signedData.cookies,
+      'Accept': 'application/json',
+      'Referer': 'https://www.tiktok.com/'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`TikTok API returned ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Build trending/recommend API URL
+ */
+function buildTrendingUrl(count = 30) {
+  const params = new URLSearchParams({
+    WebIdLastTime: Date.now().toString(),
+    aid: '1988',
+    app_language: 'en',
+    app_name: 'tiktok_web',
+    browser_language: 'en-US',
+    browser_name: 'Mozilla',
+    browser_online: 'true',
+    browser_platform: 'Linux x86_64',
+    browser_version: '5.0',
+    channel: 'tiktok_web',
+    cookie_enabled: 'true',
+    count: count.toString(),
+    device_id: CONFIG.DEVICE_ID,
+    device_platform: 'web_pc',
+    focus_state: 'true',
+    from_page: 'fyp',
+    history_len: '2',
+    is_fullscreen: 'false',
+    is_page_visible: 'true',
+    language: 'en',
+    os: 'linux',
+    priority_region: 'US',
+    region: 'US',
+    screen_height: '1080',
+    screen_width: '1920',
+    tz_name: 'America/New_York',
+    webcast_language: 'en'
+  });
+
+  return `https://www.tiktok.com/api/recommend/item_list/?${params.toString()}`;
+}
+
+/**
+ * Fetch trending videos
+ */
+async function fetchTrendingVideos(count = 30) {
+  const url = buildTrendingUrl(count);
+
+  console.log(`Fetching ${count} trending videos...`);
+  console.log('');
+
+  // Get signed URL
+  const signedData = await getSignedUrl(url);
+
+  // Fetch from TikTok
+  const data = await fetchFromTikTok(signedData);
+
+  return data;
+}
+
+/**
+ * Display trending video results
+ */
+function displayResults(data) {
+  if (!data.itemList || data.itemList.length === 0) {
+    console.log('No trending videos found.');
+    return;
+  }
+
+  console.log(`Found ${data.itemList.length} trending videos!\n`);
+  console.log('='.repeat(70));
+
+  data.itemList.forEach((video, index) => {
+    console.log(`\n${index + 1}. Video ID: ${video.id}`);
+    console.log(`   Author: @${video.author?.uniqueId || 'Unknown'} ${video.author?.verified ? '(Verified)' : ''}`);
+    console.log(`   Description: ${(video.desc || 'No description').substring(0, 55)}${video.desc?.length > 55 ? '...' : ''}`);
+
+    if (video.stats) {
+      const views = video.stats.playCount;
+      const likes = video.stats.diggCount;
+      const viewsFormatted = views >= 1000000 ? `${(views/1000000).toFixed(1)}M` :
+                             views >= 1000 ? `${(views/1000).toFixed(1)}K` : views;
+      const likesFormatted = likes >= 1000000 ? `${(likes/1000000).toFixed(1)}M` :
+                             likes >= 1000 ? `${(likes/1000).toFixed(1)}K` : likes;
+
+      console.log(`   Views: ${viewsFormatted} | Likes: ${likesFormatted} | Comments: ${video.stats.commentCount?.toLocaleString() || 'N/A'}`);
+    }
+
+    if (video.music?.title) {
+      console.log(`   Music: ${video.music.title.substring(0, 40)}${video.music.title.length > 40 ? '...' : ''}`);
+    }
+
+    // Show hashtags
+    if (video.textExtra && video.textExtra.length > 0) {
+      const hashtags = video.textExtra
+        .filter(tag => tag.hashtagName)
+        .map(tag => `#${tag.hashtagName}`)
+        .slice(0, 4)
+        .join(' ');
+      if (hashtags) {
+        console.log(`   Tags: ${hashtags}`);
+      }
+    }
+  });
+
+  console.log('\n' + '='.repeat(70));
+  console.log(`Total: ${data.itemList.length} videos`);
+  console.log(`Has more: ${data.hasMore ? 'Yes' : 'No'}`);
+}
+
+// Main execution
+async function main() {
+  const count = parseInt(process.argv[2]) || CONFIG.COUNT;
+
+  console.log('='.repeat(70));
+  console.log('TIKTOK TRENDING VIDEOS');
+  console.log('='.repeat(70));
+  console.log('');
 
   try {
-    await api.initialize();
-
-    if (options.hashtags) {
-      const data = await api.fetchTrendingHashtags();
-      console.log("🏷️ Trending hashtags data:", data);
-      return data;
-    } else {
-      const data = await api.fetchTrending(options);
-      console.log(data);
-      api.displayResults(data);
-      return data;
-    }
+    const data = await fetchTrendingVideos(count);
+    displayResults(data);
   } catch (error) {
-    console.error("❌ Failed to fetch trending content:", error.message);
-    throw error;
-  } finally {
-    await api.cleanup();
+    console.error('Error:', error.message);
+    process.exit(1);
   }
 }
 
-// Export for module usage
-export default main;
-export { TrendingAPI };
-
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const hashtags = process.argv.includes('--hashtags');
-  const count = parseInt(process.argv.find(arg => arg.startsWith('--count='))?.split('=')[1]) || 20;
-
-  main({ hashtags, count })
-    .then(() => {
-      console.log("\n✅ Trending example completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("\n❌ Example failed:", error.message);
-      process.exit(1);
-    });
-}
+main();
