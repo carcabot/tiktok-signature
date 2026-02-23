@@ -9,7 +9,7 @@ SEC_UID="${1:-MS4wLjABAAAAtBazTpLuo5XSFwEiX3gkaeV4ZY7u071I08MUNFL5B_zZoelUkTWrhC
 DEVICE_ID=$((RANDOM * RANDOM * RANDOM % 9000000000000000000 + 1000000000000000000))
 
 # Build the API URL
-API_URL="https://www.tiktok.com/api/post/item_list/?WebIdLastTime=$(date +%s)&aid=1988&app_language=en&app_name=tiktok_web&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Linux%20x86_64&browser_version=5.0&channel=tiktok_web&cookie_enabled=true&count=30&coverFormat=0&cursor=0&data_collection_enabled=true&device_id=${DEVICE_ID}&device_platform=web_pc&focus_state=true&history_len=2&is_fullscreen=false&is_page_visible=true&language=en&odinId=7185858543857140779&os=linux&priority_region=US&referer=&region=US&screen_height=1080&screen_width=1920&secUid=${SEC_UID}&tz_name=America/New_York&user_is_login=true&video_encoding=mp4&webcast_language=en"
+API_URL="https://www.tiktok.com/api/post/item_list/?WebIdLastTime=$(date +%s)&aid=1988&app_language=en&app_name=tiktok_web&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=MacIntel&browser_version=5.0&channel=tiktok_web&cookie_enabled=true&count=30&coverFormat=0&cursor=0&data_collection_enabled=true&device_id=${DEVICE_ID}&device_platform=web_pc&focus_state=true&history_len=2&is_fullscreen=false&is_page_visible=true&language=en&odinId=7185858543857140779&os=mac&priority_region=US&referer=&region=US&screen_height=1080&screen_width=1920&secUid=${SEC_UID}&tz_name=America/New_York&user_is_login=true&video_encoding=mp4&webcast_language=en"
 
 echo "Fetching signature for secUid: ${SEC_UID:0:30}..."
 echo "Device ID: $DEVICE_ID"
