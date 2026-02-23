@@ -441,17 +441,59 @@ async function _generateSignedUrlInternal(targetUrl, userAgent = null) {
   await initBrowser();
   await ensurePageReady();
 
-  // Parse target URL - use it as-is, only remove existing signatures
+  // Parse target URL - remove existing signatures and normalize fingerprint params
   const urlObj = new URL(targetUrl);
   urlObj.searchParams.delete("X-Bogus");
   urlObj.searchParams.delete("X-Gnarly");
   urlObj.searchParams.delete("msToken");
+
+  // Normalize browser fingerprint params to match our browser environment.
+  // TikTok validates that URL params match the X-Bogus signature's fingerprint.
+  // Mismatched values (e.g., os=linux with a macOS browser) cause "url doesn't match".
+  normalizeUrlFingerprint(urlObj);
 
   const fetchUrl = urlObj.toString();
   console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
 
   // Use fetch interception - SDK signs fetch requests automatically
   return _signWithFetchInterception(fetchUrl, userAgent);
+}
+
+/**
+ * Normalize browser fingerprint query parameters to match the browser environment.
+ * TikTok's X-Bogus signature encodes the browser's actual fingerprint, so the URL
+ * params must be consistent with the browser environment or TikTok returns
+ * "url doesn't match".
+ * Only overwrites params that are already present in the URL.
+ * @param {URL} urlObj - The URL object to normalize in place
+ */
+function normalizeUrlFingerprint(urlObj) {
+  const params = urlObj.searchParams;
+
+  // Map of fingerprint param -> correct value for our browser environment
+  const fingerprint = {
+    browser_platform: "MacIntel", // matches navigator.platform override
+    os: "mac", // matches Safari macOS UA
+    screen_width: "1920", // matches viewport
+    screen_height: "1080", // matches viewport
+  };
+
+  let normalized = false;
+  for (const [key, correctValue] of Object.entries(fingerprint)) {
+    if (params.has(key) && params.get(key) !== correctValue) {
+      console.log(
+        `[Server] Normalizing ${key}: "${params.get(key)}" -> "${correctValue}"`,
+      );
+      params.set(key, correctValue);
+      normalized = true;
+    }
+  }
+
+  if (normalized) {
+    console.log(
+      "[Server] URL fingerprint params normalized to match browser environment",
+    );
+  }
 }
 
 /**
@@ -751,6 +793,11 @@ async function handleRequest(req, res) {
             cookies: result.cookies,
             navigator: {
               user_agent: result.userAgent,
+              platform: "MacIntel",
+              browser_language: "en-US",
+              os: "mac",
+              screen_width: "1920",
+              screen_height: "1080",
             },
           },
         }),
