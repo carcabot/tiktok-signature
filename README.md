@@ -587,6 +587,7 @@ This error occurs when the browser fingerprint params in your URL don't match th
 ### Signatures Not Working
 
 1. **Restart the browser session:**
+
    ```bash
    curl http://localhost:8080/restart
    ```
