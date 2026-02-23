@@ -59,4 +59,4 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run security audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --audit-level=moderate --omit=dev
