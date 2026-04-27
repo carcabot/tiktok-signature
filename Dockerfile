@@ -34,6 +34,7 @@ RUN npm ci --only=production
 
 # Copy application files
 COPY server.mjs ./
+COPY xgnarly.mjs ./
 COPY benchmark.mjs ./
 COPY javascript/ ./javascript/
 
