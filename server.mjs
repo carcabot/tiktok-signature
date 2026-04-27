@@ -25,6 +25,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { encode as encodeXGnarly } from "./xgnarly.mjs";
 
 // Use stealth plugin with default evasions
 puppeteer.use(StealthPlugin());
@@ -630,8 +631,7 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     else if (sdkN.o && sdkN.o[995] && sdkN.o[995].v) table = sdkN.o;
     if (!table) return { error: "SDK not ready" };
     const u995 = table[995] && table[995].v;
-    const u996 = table[996] && table[996].v;
-    if (typeof u995 !== "function" || typeof u996 !== "function") {
+    if (typeof u995 !== "function") {
       return { error: "SDK not ready" };
     }
 
@@ -643,14 +643,16 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     u.searchParams.delete("X-Bogus");
     u.searchParams.delete("X-Gnarly");
     u.searchParams.set("msToken", msToken);
-    const fullUrl = u.toString();
     const queryString = u.search.slice(1);
 
+    if (typeof window.__sigCallCount !== "number") window.__sigCallCount = 100;
+    window.__sigCallCount += 1;
+    const baseN = window.__sigCallCount;
     let counterObj = {
-      totalXHRRequests: 1,
-      totalFetchRequests: 3,
-      interceptedXHRRequests: 0,
-      interceptedFetchRequests: 2,
+      totalXHRRequests: Math.floor(baseN * 0.6),
+      totalFetchRequests: Math.floor(baseN * 0.4) + 3,
+      interceptedXHRRequests: Math.floor(baseN * 0.1),
+      interceptedFetchRequests: Math.floor(baseN * 0.05) + 1,
     };
     try {
       const cap3 = window.__cap3 || [];
@@ -659,7 +661,7 @@ async function _signDirectly(fetchUrl, userAgent = null) {
         .find((c) => c.fn === "gnarly_x" && c.args && c.args[3] && c.args[3].v);
       if (lastNat && lastNat.args[3].v) {
         const v = lastNat.args[3].v;
-        counterObj = {
+        const fromCap = {
           totalXHRRequests: (v.totalXHRRequests && v.totalXHRRequests.v) || 0,
           totalFetchRequests:
             (v.totalFetchRequests && v.totalFetchRequests.v) || 0,
@@ -668,20 +670,26 @@ async function _signDirectly(fetchUrl, userAgent = null) {
           interceptedFetchRequests:
             (v.interceptedFetchRequests && v.interceptedFetchRequests.v) || 0,
         };
+        if (fromCap.totalXHRRequests + fromCap.totalFetchRequests > 0) {
+          counterObj = fromCap;
+        }
       }
     } catch (e) {}
 
+    const acrawlerInst =
+      window.byted_acrawler && typeof window.byted_acrawler === "object"
+        ? window.byted_acrawler
+        : null;
     try {
-      const xb = u995.call(void 0, queryString, "");
-      const xg = u996.call(void 0, queryString, "", fullUrl, counterObj);
-      u.searchParams.set("X-Bogus", xb);
-      u.searchParams.set("X-Gnarly", xg);
+      const xb = u995.call(acrawlerInst, queryString, "");
       return {
-        signedUrl: u.toString(),
+        urlBase: u.toString(),
+        queryString,
         xBogus: xb,
-        xGnarly: xg,
         msTokenUsed: msToken,
+        userAgent: navigator.userAgent,
         cookies: document.cookie,
+        counters: counterObj,
       };
     } catch (e) {
       return { error: e.message, stack: e.stack };
@@ -692,9 +700,21 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     throw new Error("Sign failed: " + out.error);
   }
 
+  const xg = encodeXGnarly(
+    out.queryString,
+    "",
+    out.userAgent,
+    out.counters,
+    { ubcode: 4, sdkVersion: "1.0.0.368" },
+  );
+
+  const u = new URL(out.urlBase);
+  u.searchParams.set("X-Bogus", out.xBogus);
+  u.searchParams.set("X-Gnarly", xg);
+
   cookies = await page.cookies();
   generationCount++;
-  return parseResult(out.signedUrl, userAgent);
+  return parseResult(u.toString(), userAgent);
 }
 
 /**

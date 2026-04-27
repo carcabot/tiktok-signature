@@ -37,7 +37,8 @@
   "dependencies": {
     "puppeteer": "^24.36.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "undici": "^7.25.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

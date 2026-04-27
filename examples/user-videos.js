@@ -8,10 +8,25 @@
  *   1. Start the server: npm start
  *   2. Run: node examples/user-videos.js [SEC_UID] [COUNT]
  *
+ * Env vars:
+ *   SERVER_URL  – signature server (default: http://localhost:8080)
+ *   PROXY_URL   – upstream HTTP proxy used for the external TikTok fetch.
+ *                 Format: http://user:pass@host:port. When set, the
+ *                 external request uses this proxy so its exit IP can
+ *                 match the IP the browser session was established on
+ *                 (otherwise TikTok rejects with HTTP 200 / 0 bytes).
+ *
  * To get a user's secUid, use user-info.js example.
  */
 
-const SERVER_URL = "http://localhost:8080";
+import { ProxyAgent } from "undici";
+
+const SERVER_URL = process.env.SERVER_URL || "http://localhost:8080";
+const PROXY_URL = process.env.PROXY_URL || "";
+const proxyDispatcher = PROXY_URL ? new ProxyAgent(PROXY_URL) : undefined;
+if (PROXY_URL) {
+  console.log(`Using proxy for external fetch: ${PROXY_URL.replace(/:[^:@]+@/, ":****@")}`);
+}
 
 // Default configuration
 const CONFIG = {
@@ -44,6 +59,7 @@ async function getSignedUrl(url) {
  */
 async function fetchFromTikTok(signedData) {
   const response = await fetch(signedData.signed_url, {
+    dispatcher: proxyDispatcher,
     headers: {
       "User-Agent": signedData.navigator.user_agent,
       Cookie: signedData.cookies,
