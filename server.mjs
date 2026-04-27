@@ -558,7 +558,11 @@ async function ensurePageReady() {
  * @param {string} targetUrl - The URL to sign
  * @param {string|null} userAgent - Optional custom user agent to return in response
  */
-async function generateSignedUrl(targetUrl, userAgent = null, navigateTo = null) {
+async function generateSignedUrl(
+  targetUrl,
+  userAgent = null,
+  navigateTo = null,
+) {
   return queueSignatureRequest(() =>
     _generateSignedUrlInternal(targetUrl, userAgent, navigateTo),
   );
@@ -571,7 +575,11 @@ async function generateSignedUrl(targetUrl, userAgent = null, navigateTo = null)
  * @param {string|null} navigateTo - Optional TikTok page URL; when given,
  *   the response uses a page-intercept path instead of the default fast path.
  */
-async function _generateSignedUrlInternal(targetUrl, userAgent = null, navigateTo = null) {
+async function _generateSignedUrlInternal(
+  targetUrl,
+  userAgent = null,
+  navigateTo = null,
+) {
   await initBrowser();
   await ensurePageReady();
 
@@ -599,7 +607,10 @@ async function _signViaPageIntercept(targetUrl, navigateTo, userAgent = null) {
   // Always navigate per call — that's the only reliable way to get a fresh
   // signed URL that TikTok will accept on external fetch. Cache-reuse and
   // scroll-trigger were both tried and produced unfetchable URLs.
-  await page.goto(navigateTo, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(navigateTo, {
+    waitUntil: "domcontentloaded",
+    timeout: 60000,
+  });
   await dismissTikTokErrorIfPresent();
 
   // Wait for the permanent listener to capture a matching signed URL emitted
@@ -616,7 +627,9 @@ async function _signViaPageIntercept(targetUrl, navigateTo, userAgent = null) {
     await new Promise((r) => setTimeout(r, 50));
   }
 
-  throw new Error(`No fresh ${targetPath} request emitted by ${navigateTo} within ${WAIT_MS / 1000}s`);
+  throw new Error(
+    `No fresh ${targetPath} request emitted by ${navigateTo} within ${WAIT_MS / 1000}s`,
+  );
 }
 
 async function _signDirectly(fetchUrl, userAgent = null) {
@@ -627,7 +640,8 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     const sdkN = window.__sdkN;
     let table = null;
     if (sdkN.u && sdkN.u[995] && sdkN.u[995].v) table = sdkN.u;
-    else if (sdkN.B && sdkN.B.o && sdkN.B.o[995] && sdkN.B.o[995].v) table = sdkN.B.o;
+    else if (sdkN.B && sdkN.B.o && sdkN.B.o[995] && sdkN.B.o[995].v)
+      table = sdkN.B.o;
     else if (sdkN.o && sdkN.o[995] && sdkN.o[995].v) table = sdkN.o;
     if (!table) return { error: "SDK not ready" };
     const u995 = table[995] && table[995].v;
@@ -700,13 +714,10 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     throw new Error("Sign failed: " + out.error);
   }
 
-  const xg = encodeXGnarly(
-    out.queryString,
-    "",
-    out.userAgent,
-    out.counters,
-    { ubcode: 4, sdkVersion: "1.0.0.368" },
-  );
+  const xg = encodeXGnarly(out.queryString, "", out.userAgent, out.counters, {
+    ubcode: 4,
+    sdkVersion: "1.0.0.368",
+  });
 
   const u = new URL(out.urlBase);
   u.searchParams.set("X-Bogus", out.xBogus);
@@ -997,7 +1008,6 @@ async function handleRequest(req, res) {
       );
       return;
     }
-
 
     if (url.pathname === "/signature" && req.method === "POST") {
       let body = "";

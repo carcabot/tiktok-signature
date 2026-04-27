@@ -1,0 +1,6 @@
+node_modules/
+coverage/
+.chrome-profile/
+
+# Vendored TikTok SDK bundles — do not auto-format
+javascript/

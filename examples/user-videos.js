@@ -25,7 +25,9 @@ const SERVER_URL = process.env.SERVER_URL || "http://localhost:8080";
 const PROXY_URL = process.env.PROXY_URL || "";
 const proxyDispatcher = PROXY_URL ? new ProxyAgent(PROXY_URL) : undefined;
 if (PROXY_URL) {
-  console.log(`Using proxy for external fetch: ${PROXY_URL.replace(/:[^:@]+@/, ":****@")}`);
+  console.log(
+    `Using proxy for external fetch: ${PROXY_URL.replace(/:[^:@]+@/, ":****@")}`,
+  );
 }
 
 // Default configuration

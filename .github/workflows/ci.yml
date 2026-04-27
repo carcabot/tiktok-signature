@@ -50,7 +50,7 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
       - name: Check code formatting
-        run: npx prettier --check "**/*.mjs" "**/*.js" "**/*.md" ".github/**/*.yml" --ignore-path .gitignore
+        run: npx prettier --check "**/*.mjs" "**/*.js" "**/*.md" ".github/**/*.yml"
 
   security:
     runs-on: ubuntu-latest

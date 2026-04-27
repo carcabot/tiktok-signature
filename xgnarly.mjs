@@ -85,9 +85,7 @@ function deriveRounds(keyWords) {
   return r + 5;
 }
 
-const FIELD_ORDER = [
-  1, 8, 12, 11, 6, 9, 4, 7, 0, 14, 15, 2, 3, 10, 5, 13,
-];
+const FIELD_ORDER = [1, 8, 12, 11, 6, 9, 4, 7, 0, 14, 15, 2, 3, 10, 5, 13];
 
 const INT_WIDTHS = {
   0: 4,
@@ -146,7 +144,13 @@ function encodePayload(fields) {
 const MAGIC_BYTE = 75;
 const md5 = (s) => createHash("md5").update(s, "utf8").digest("hex");
 
-export function encode(queryString, body, userAgent, counters = {}, options = {}) {
+export function encode(
+  queryString,
+  body,
+  userAgent,
+  counters = {},
+  options = {},
+) {
   const ts = options.timestampMs ?? Date.now();
   const ubcode = options.ubcode ?? 4;
   const sdkVersion = options.sdkVersion ?? "1.0.0.368";
@@ -174,9 +178,7 @@ export function encode(queryString, body, userAgent, counters = {}, options = {}
     9: "5.1.3-ZTCA",
     10: sdkVersion,
     11: 1,
-    12:
-      (counters.totalXHRRequests ?? 0) +
-      (counters.totalFetchRequests ?? 0),
+    12: (counters.totalXHRRequests ?? 0) + (counters.totalFetchRequests ?? 0),
     13:
       (counters.interceptedXHRRequests ?? 0) +
       (counters.interceptedFetchRequests ?? 0),
@@ -190,11 +192,11 @@ export function encode(queryString, body, userAgent, counters = {}, options = {}
   for (let i = 0; i < 12; i++) {
     const o = i * 4;
     keyWords[i] =
-      ((keyBytes[o] |
+      (keyBytes[o] |
         (keyBytes[o + 1] << 8) |
         (keyBytes[o + 2] << 16) |
         (keyBytes[o + 3] << 24)) >>>
-        0);
+      0;
   }
   const rounds = deriveRounds(keyWords);
 
