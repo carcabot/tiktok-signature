@@ -53,6 +53,32 @@ const PROXY_PASS = process.env.PROXY_PASS || "";
 const SDK_PATH = path.join(__dirname, "javascript", "webmssdk_5.1.3.js");
 let localSdkContent = null;
 
+// Versioned SDK files served in place of the CDN copies.
+const SDK_368_PATH = path.join(
+  __dirname,
+  "javascript",
+  "webmssdk_1.0.0.368.js",
+);
+const SDK_485_PATH = path.join(
+  __dirname,
+  "javascript",
+  "webmssdk_2.0.0.485.js",
+);
+let sdk368 = null;
+let sdk485 = null;
+try {
+  if (fs.existsSync(SDK_368_PATH)) {
+    sdk368 = fs.readFileSync(SDK_368_PATH, "utf-8");
+    console.log("[Server] Loaded:", SDK_368_PATH);
+  }
+  if (fs.existsSync(SDK_485_PATH)) {
+    sdk485 = fs.readFileSync(SDK_485_PATH, "utf-8");
+    console.log("[Server] Loaded:", SDK_485_PATH);
+  }
+} catch (e) {
+  console.log("[Server] SDK load error:", e.message);
+}
+
 // Try to load local SDK
 try {
   if (fs.existsSync(SDK_PATH)) {
@@ -72,6 +98,10 @@ let isReady = false;
 let generationCount = 0;
 let initMethod = null;
 let lastInitTime = null;
+
+// Cache of page-emitted signed URLs, keyed by pathname.
+const signedUrlCache = new Map();
+const SIGNED_CACHE_MAX_AGE_MS = 60_000;
 
 // Auto-refresh configuration to avoid blocks
 const MAX_GENERATIONS_BEFORE_REFRESH = 500; // Restart browser after this many signatures
@@ -206,6 +236,22 @@ async function initBrowser() {
 
     page = await browser.newPage();
 
+    // Permanent passive listener: every signed request the page emits gets
+    // cached by its pathname. /signature reads this cache and returns the
+    // freshest URL without navigating.
+    page.on("request", (request) => {
+      try {
+        const u = request.url();
+        if (!u.includes("X-Gnarly=")) return;
+        const parsed = new URL(u);
+        signedUrlCache.set(parsed.pathname, {
+          url: u,
+          capturedAt: Date.now(),
+          referer: request.headers().referer || "",
+        });
+      } catch (e) {}
+    });
+
     // Authenticate with proxy if enabled
     if (PROXY_ENABLED && PROXY_USER && PROXY_PASS) {
       await page.authenticate({
@@ -225,6 +271,17 @@ async function initBrowser() {
       });
     });
 
+    await page.evaluateOnNewDocument(() => {
+      if (typeof window.process === "undefined") {
+        window.process = {
+          env: { NODE_ENV: "production" },
+          browser: true,
+          version: "",
+          versions: {},
+        };
+      }
+    });
+
     // Initialize with local SDK
     await initWithLocalSdk();
     lastInitTime = new Date().toISOString();
@@ -237,6 +294,47 @@ async function initBrowser() {
   } finally {
     isInitializing = false;
   }
+}
+
+/**
+ * Detect TikTok's "Something went wrong" interstitial and click its Refresh
+ * button. Returns true if the error was detected and handled, false otherwise.
+ * Tries up to 2 retries since the second load occasionally errors too.
+ */
+async function dismissTikTokErrorIfPresent(maxAttempts = 2) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const state = await page.evaluate(() => {
+      const text = document.body ? document.body.innerText || "" : "";
+      const hasError = /Something went wrong/i.test(text);
+      const refreshBtn = Array.from(document.querySelectorAll("button")).find(
+        (b) => /^\s*Refresh\s*$/i.test(b.textContent || ""),
+      );
+      return { hasError, hasRefreshBtn: !!refreshBtn };
+    });
+    if (!state.hasError) {
+      return attempt === 1 ? false : true;
+    }
+    console.log(
+      `[Server] Detected "Something went wrong" interstitial (attempt ${attempt}/${maxAttempts}), clicking Refresh...`,
+    );
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        /^\s*Refresh\s*$/i.test(b.textContent || ""),
+      );
+      if (btn) btn.click();
+    });
+    // Wait for the bundle to re-initialise after the click
+    try {
+      await page.waitForNavigation({
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+    } catch (e) {
+      // Some refreshes don't trigger a full navigation; just wait
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  return true;
 }
 
 /**
@@ -270,9 +368,28 @@ async function initWithLocalSdk() {
     const url = request.url();
     const resourceType = request.resourceType();
 
-    // Block TikTok's SDK files to prevent conflicts with our local SDK
+    if (url.includes("/webmssdk/")) {
+      let body = null;
+      if (url.includes("2.0.0.485") && sdk485) body = sdk485;
+      else if (url.includes("1.0.0.368") && sdk368) body = sdk368;
+      else if (sdk485) body = sdk485;
+      if (body) {
+        try {
+          await request.respond({
+            status: 200,
+            contentType: "application/javascript; charset=utf-8",
+            body,
+          });
+        } catch (e) {
+          await request.abort();
+        }
+        return;
+      }
+    }
+
+    // Block other security/telemetry SDK files (we don't want them interfering)
     if (
-      url.includes("webmssdk") ||
+      url.includes("/webmssdk/") ||
       url.includes("slardar") ||
       url.includes("acrawler")
     ) {
@@ -292,7 +409,7 @@ async function initWithLocalSdk() {
   page.on("request", requestHandler);
 
   console.log("[Server] Navigating to TikTok...");
-  await page.goto("https://www.tiktok.com/@tiktok", {
+  await page.goto("https://www.tiktok.com/@zara", {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
@@ -323,14 +440,28 @@ async function initWithLocalSdk() {
   initMethod = "local-sdk";
   console.log("[Server] Local SDK initialized successfully");
 
-  // Disable interception now
-  page.off("request", requestHandler);
-  await page.setRequestInterception(false);
+  // Interception remains active across navigations.
 
   // Warm up the SDK
   console.log("[Server] Warming up SDK...");
   await page.evaluate(() => window.scrollBy(0, 500));
   await new Promise((r) => setTimeout(r, 2000));
+
+  // Always reload after the initial load. First load is unreliable — sometimes
+  // a blank/white page, sometimes the "Something went wrong" interstitial. The
+  // reload primes the second pass with the cookies/msToken accumulated on the
+  // first pass, after which the page bundle reliably emits signed requests.
+  console.log("[Server] Reloading page to stabilize session...");
+  try {
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  } catch (e) {
+    console.log("[Server] Reload warning:", e.message);
+  }
+  await new Promise((r) => setTimeout(r, 3000));
+
+  // If the second pass still shows the "Something went wrong" interstitial,
+  // click its in-page Refresh button to retry once more.
+  await dismissTikTokErrorIfPresent();
 
   // Extract cookies for use in requests
   cookies = await page.cookies();
@@ -426,18 +557,20 @@ async function ensurePageReady() {
  * @param {string} targetUrl - The URL to sign
  * @param {string|null} userAgent - Optional custom user agent to return in response
  */
-async function generateSignedUrl(targetUrl, userAgent = null) {
+async function generateSignedUrl(targetUrl, userAgent = null, navigateTo = null) {
   return queueSignatureRequest(() =>
-    _generateSignedUrlInternal(targetUrl, userAgent),
+    _generateSignedUrlInternal(targetUrl, userAgent, navigateTo),
   );
 }
 
 /**
  * Internal implementation - must be called through queue
  * @param {string} targetUrl - The URL to sign
- * @param {string|null} userAgent - Optional custom user agent to return in response
+ * @param {string|null} userAgent - Optional UA to return in response
+ * @param {string|null} navigateTo - Optional TikTok page URL; when given,
+ *   the response uses a page-intercept path instead of the default fast path.
  */
-async function _generateSignedUrlInternal(targetUrl, userAgent = null) {
+async function _generateSignedUrlInternal(targetUrl, userAgent = null, navigateTo = null) {
   await initBrowser();
   await ensurePageReady();
 
@@ -446,56 +579,122 @@ async function _generateSignedUrlInternal(targetUrl, userAgent = null) {
   urlObj.searchParams.delete("X-Bogus");
   urlObj.searchParams.delete("X-Gnarly");
   urlObj.searchParams.delete("msToken");
-
-  // Normalize browser fingerprint params to match our browser environment.
-  // TikTok validates that URL params match the X-Bogus signature's fingerprint.
-  // Mismatched values (e.g., os=linux with a macOS browser) cause "url doesn't match".
   normalizeUrlFingerprint(urlObj);
-
   const fetchUrl = urlObj.toString();
-  console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
 
-  // Direct call into the SDK — no fetch interception, no aborted requests,
-  // no per-request browser stall. The SDK's frontierSign computes X-Bogus
-  // from the URL synchronously and returns it; we append to the URL.
+  if (navigateTo) {
+    console.log(`[Server] Sign via page intercept: navigateTo=${navigateTo}`);
+    return _signViaPageIntercept(fetchUrl, navigateTo, userAgent);
+  }
+
+  console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
   return _signDirectly(fetchUrl, userAgent);
 }
 
-/**
- * Sign a URL by calling `byted_acrawler.frontierSign(url)` directly inside
- * the warmed-up browser page and appending the returned X-Bogus to the URL.
- *
- * This is the scalable path: no request interception, no fetch round-trip
- * per signature — just a synchronous SDK call. Many concurrent calls share
- * the same browser instance.
- */
+async function _signViaPageIntercept(targetUrl, navigateTo, userAgent = null) {
+  const targetPath = new URL(targetUrl).pathname;
+  const callStart = Date.now();
+
+  // Always navigate per call — that's the only reliable way to get a fresh
+  // signed URL that TikTok will accept on external fetch. Cache-reuse and
+  // scroll-trigger were both tried and produced unfetchable URLs.
+  await page.goto(navigateTo, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await dismissTikTokErrorIfPresent();
+
+  // Wait for the permanent listener to capture a matching signed URL emitted
+  // after this call started (rules out a stale entry left from a prior nav).
+  // Residential proxies can be slow — give it 15s.
+  const WAIT_MS = 15000;
+  while (Date.now() - callStart < WAIT_MS) {
+    const c = signedUrlCache.get(targetPath);
+    if (c && c.capturedAt >= callStart) {
+      cookies = await page.cookies();
+      generationCount++;
+      return parseResult(c.url, userAgent);
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  throw new Error(`No fresh ${targetPath} request emitted by ${navigateTo} within ${WAIT_MS / 1000}s`);
+}
+
 async function _signDirectly(fetchUrl, userAgent = null) {
   const out = await page.evaluate((url) => {
-    if (!window.byted_acrawler || typeof window.byted_acrawler.frontierSign !== "function") {
+    if (typeof window.__sdkN === "undefined") {
+      return { error: "SDK not initialized" };
+    }
+    const sdkN = window.__sdkN;
+    let table = null;
+    if (sdkN.u && sdkN.u[995] && sdkN.u[995].v) table = sdkN.u;
+    else if (sdkN.B && sdkN.B.o && sdkN.B.o[995] && sdkN.B.o[995].v) table = sdkN.B.o;
+    else if (sdkN.o && sdkN.o[995] && sdkN.o[995].v) table = sdkN.o;
+    if (!table) return { error: "SDK not ready" };
+    const u995 = table[995] && table[995].v;
+    const u996 = table[996] && table[996].v;
+    if (typeof u995 !== "function" || typeof u996 !== "function") {
       return { error: "SDK not ready" };
     }
+
+    const u = new URL(url);
+    const msTokenMatches = document.cookie.match(/msToken=([^;]+)/g) || [];
+    const msToken = msTokenMatches.length
+      ? msTokenMatches[msTokenMatches.length - 1].split("=", 2)[1]
+      : "";
+    u.searchParams.delete("X-Bogus");
+    u.searchParams.delete("X-Gnarly");
+    u.searchParams.set("msToken", msToken);
+    const fullUrl = u.toString();
+    const queryString = u.search.slice(1);
+
+    let counterObj = {
+      totalXHRRequests: 1,
+      totalFetchRequests: 3,
+      interceptedXHRRequests: 0,
+      interceptedFetchRequests: 2,
+    };
     try {
-      const r = window.byted_acrawler.frontierSign(url);
-      // Returns { "X-Bogus": "...", optional "X-Gnarly": "..." } depending on SDK version.
-      return { result: r ? JSON.parse(JSON.stringify(r)) : null };
+      const cap3 = window.__cap3 || [];
+      const lastNat = [...cap3]
+        .reverse()
+        .find((c) => c.fn === "gnarly_x" && c.args && c.args[3] && c.args[3].v);
+      if (lastNat && lastNat.args[3].v) {
+        const v = lastNat.args[3].v;
+        counterObj = {
+          totalXHRRequests: (v.totalXHRRequests && v.totalXHRRequests.v) || 0,
+          totalFetchRequests:
+            (v.totalFetchRequests && v.totalFetchRequests.v) || 0,
+          interceptedXHRRequests:
+            (v.interceptedXHRRequests && v.interceptedXHRRequests.v) || 0,
+          interceptedFetchRequests:
+            (v.interceptedFetchRequests && v.interceptedFetchRequests.v) || 0,
+        };
+      }
+    } catch (e) {}
+
+    try {
+      const xb = u995.call(void 0, queryString, "");
+      const xg = u996.call(void 0, queryString, "", fullUrl, counterObj);
+      u.searchParams.set("X-Bogus", xb);
+      u.searchParams.set("X-Gnarly", xg);
+      return {
+        signedUrl: u.toString(),
+        xBogus: xb,
+        xGnarly: xg,
+        msTokenUsed: msToken,
+        cookies: document.cookie,
+      };
     } catch (e) {
-      return { error: e.message };
+      return { error: e.message, stack: e.stack };
     }
   }, fetchUrl);
 
   if (out.error) {
-    throw new Error("frontierSign failed: " + out.error);
-  }
-  if (!out.result || typeof out.result !== "object") {
-    throw new Error("frontierSign returned no signature");
+    throw new Error("Sign failed: " + out.error);
   }
 
-  const signed = new URL(fetchUrl);
-  if (out.result["X-Bogus"]) signed.searchParams.set("X-Bogus", out.result["X-Bogus"]);
-  if (out.result["X-Gnarly"]) signed.searchParams.set("X-Gnarly", out.result["X-Gnarly"]);
-
+  cookies = await page.cookies();
   generationCount++;
-  return parseResult(signed.toString(), userAgent);
+  return parseResult(out.signedUrl, userAgent);
 }
 
 /**
@@ -779,85 +978,6 @@ async function handleRequest(req, res) {
       return;
     }
 
-    // Generate signature (RECOMMENDED - scalable)
-    // Probe: navigate to a TikTok page to populate session cookies/msToken.
-    if (url.pathname === "/probe-navigate" && req.method === "POST") {
-      let body = "";
-      for await (const chunk of req) body += chunk;
-      let target = null;
-      try { target = JSON.parse(body).url; } catch (e) {}
-      if (!target) { res.writeHead(400); res.end('{"error":"url required"}'); return; }
-      await initBrowser();
-      await ensurePageReady();
-      try {
-        await page.goto(target, { waitUntil: "networkidle2", timeout: 30000 });
-        await new Promise(r => setTimeout(r, 1500));
-        const ctx = await page.evaluate(() => ({
-          location: location.href,
-          documentCookie: document.cookie,
-        }));
-        const all = await page.cookies();
-        res.writeHead(200);
-        res.end(JSON.stringify({ navigated: true, ctx, cookieNames: all.map(c => c.name), msTokenPresent: all.some(c => c.name === 'msToken') }, null, 2));
-      } catch (e) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      }
-      return;
-    }
-
-    // Probe: dump browser context (cookies, document state). Diagnostic only.
-    if (url.pathname === "/probe-context" && req.method === "GET") {
-      await initBrowser();
-      await ensurePageReady();
-      const ctx = await page.evaluate(() => {
-        return {
-          documentCookie: document.cookie,
-          location: location.href,
-          localStorage: Object.fromEntries(Object.entries(localStorage)),
-          msTokenInPage: (document.cookie.match(/msToken=([^;]+)/) || [])[1] || null,
-        };
-      });
-      const allCookies = await page.cookies();
-      res.writeHead(200);
-      res.end(JSON.stringify({ ctx, allCookies }, null, 2));
-      return;
-    }
-
-    // Probe: call frontierSign directly to see what it returns. Diagnostic only.
-    if (url.pathname === "/probe-sign" && req.method === "POST") {
-      let body = "";
-      for await (const chunk of req) body += chunk;
-      let targetUrl = null;
-      try { targetUrl = JSON.parse(body).url; } catch (e) {}
-      if (!targetUrl) { res.writeHead(400); res.end('{"error":"url required"}'); return; }
-      await initBrowser();
-      await ensurePageReady();
-      const probe = await page.evaluate((u) => {
-        const out = { tried: [] };
-        const ac = window.byted_acrawler;
-        if (!ac) { out.error = "no byted_acrawler"; return out; }
-        // Try every reasonable signature for frontierSign — TikTok versions differ
-        const attempts = [
-          { name: "frontierSign(url)", fn: () => ac.frontierSign(u) },
-          { name: "frontierSign({url})", fn: () => ac.frontierSign({ url: u }) },
-          { name: "sign({url})", fn: () => typeof ac.sign === "function" ? ac.sign({ url: u }) : null },
-          { name: "frontierSign({url, params})", fn: () => ac.frontierSign({ url: u, params: new URL(u).search }) },
-        ];
-        for (const a of attempts) {
-          try {
-            const r = a.fn();
-            out.tried.push({ name: a.name, type: typeof r, value: r ? JSON.parse(JSON.stringify(r)) : r });
-          } catch (e) {
-            out.tried.push({ name: a.name, error: e.message });
-          }
-        }
-        return out;
-      }, targetUrl);
-      res.writeHead(200);
-      res.end(JSON.stringify(probe, null, 2));
-      return;
-    }
 
     if (url.pathname === "/signature" && req.method === "POST") {
       let body = "";
@@ -867,16 +987,14 @@ async function handleRequest(req, res) {
 
       let targetUrl = null;
       let userAgent = null;
+      let navigateTo = null;
 
       // Try to parse as JSON first
       try {
         const json = JSON.parse(body);
-        if (json.url) {
-          targetUrl = json.url;
-        }
-        if (json.userAgent) {
-          userAgent = json.userAgent;
-        }
+        if (json.url) targetUrl = json.url;
+        if (json.userAgent) userAgent = json.userAgent;
+        if (json.navigateTo) navigateTo = json.navigateTo;
       } catch (e) {
         // Body might be a direct URL string
         try {
@@ -891,13 +1009,13 @@ async function handleRequest(req, res) {
           JSON.stringify({
             status: "error",
             message:
-              'URL is required in body as JSON { "url": "...", "userAgent": "..." } or plain text URL',
+              'URL is required in body as JSON { "url": "...", "navigateTo": "...", "userAgent": "..." } or plain text URL',
           }),
         );
         return;
       }
 
-      const result = await generateSignedUrl(targetUrl, userAgent);
+      const result = await generateSignedUrl(targetUrl, userAgent, navigateTo);
 
       res.writeHead(200);
       res.end(
