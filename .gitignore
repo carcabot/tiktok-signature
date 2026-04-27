@@ -213,3 +213,5 @@ docker-compose.override.yml
 
 # Claude Code
 .claude/
+# Persistent Chrome user-data dir created by puppeteer at runtime
+.chrome-profile/

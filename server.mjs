@@ -455,8 +455,47 @@ async function _generateSignedUrlInternal(targetUrl, userAgent = null) {
   const fetchUrl = urlObj.toString();
   console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
 
-  // Use fetch interception - SDK signs fetch requests automatically
-  return _signWithFetchInterception(fetchUrl, userAgent);
+  // Direct call into the SDK — no fetch interception, no aborted requests,
+  // no per-request browser stall. The SDK's frontierSign computes X-Bogus
+  // from the URL synchronously and returns it; we append to the URL.
+  return _signDirectly(fetchUrl, userAgent);
+}
+
+/**
+ * Sign a URL by calling `byted_acrawler.frontierSign(url)` directly inside
+ * the warmed-up browser page and appending the returned X-Bogus to the URL.
+ *
+ * This is the scalable path: no request interception, no fetch round-trip
+ * per signature — just a synchronous SDK call. Many concurrent calls share
+ * the same browser instance.
+ */
+async function _signDirectly(fetchUrl, userAgent = null) {
+  const out = await page.evaluate((url) => {
+    if (!window.byted_acrawler || typeof window.byted_acrawler.frontierSign !== "function") {
+      return { error: "SDK not ready" };
+    }
+    try {
+      const r = window.byted_acrawler.frontierSign(url);
+      // Returns { "X-Bogus": "...", optional "X-Gnarly": "..." } depending on SDK version.
+      return { result: r ? JSON.parse(JSON.stringify(r)) : null };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }, fetchUrl);
+
+  if (out.error) {
+    throw new Error("frontierSign failed: " + out.error);
+  }
+  if (!out.result || typeof out.result !== "object") {
+    throw new Error("frontierSign returned no signature");
+  }
+
+  const signed = new URL(fetchUrl);
+  if (out.result["X-Bogus"]) signed.searchParams.set("X-Bogus", out.result["X-Bogus"]);
+  if (out.result["X-Gnarly"]) signed.searchParams.set("X-Gnarly", out.result["X-Gnarly"]);
+
+  generationCount++;
+  return parseResult(signed.toString(), userAgent);
 }
 
 /**
@@ -741,6 +780,85 @@ async function handleRequest(req, res) {
     }
 
     // Generate signature (RECOMMENDED - scalable)
+    // Probe: navigate to a TikTok page to populate session cookies/msToken.
+    if (url.pathname === "/probe-navigate" && req.method === "POST") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      let target = null;
+      try { target = JSON.parse(body).url; } catch (e) {}
+      if (!target) { res.writeHead(400); res.end('{"error":"url required"}'); return; }
+      await initBrowser();
+      await ensurePageReady();
+      try {
+        await page.goto(target, { waitUntil: "networkidle2", timeout: 30000 });
+        await new Promise(r => setTimeout(r, 1500));
+        const ctx = await page.evaluate(() => ({
+          location: location.href,
+          documentCookie: document.cookie,
+        }));
+        const all = await page.cookies();
+        res.writeHead(200);
+        res.end(JSON.stringify({ navigated: true, ctx, cookieNames: all.map(c => c.name), msTokenPresent: all.some(c => c.name === 'msToken') }, null, 2));
+      } catch (e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+      return;
+    }
+
+    // Probe: dump browser context (cookies, document state). Diagnostic only.
+    if (url.pathname === "/probe-context" && req.method === "GET") {
+      await initBrowser();
+      await ensurePageReady();
+      const ctx = await page.evaluate(() => {
+        return {
+          documentCookie: document.cookie,
+          location: location.href,
+          localStorage: Object.fromEntries(Object.entries(localStorage)),
+          msTokenInPage: (document.cookie.match(/msToken=([^;]+)/) || [])[1] || null,
+        };
+      });
+      const allCookies = await page.cookies();
+      res.writeHead(200);
+      res.end(JSON.stringify({ ctx, allCookies }, null, 2));
+      return;
+    }
+
+    // Probe: call frontierSign directly to see what it returns. Diagnostic only.
+    if (url.pathname === "/probe-sign" && req.method === "POST") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      let targetUrl = null;
+      try { targetUrl = JSON.parse(body).url; } catch (e) {}
+      if (!targetUrl) { res.writeHead(400); res.end('{"error":"url required"}'); return; }
+      await initBrowser();
+      await ensurePageReady();
+      const probe = await page.evaluate((u) => {
+        const out = { tried: [] };
+        const ac = window.byted_acrawler;
+        if (!ac) { out.error = "no byted_acrawler"; return out; }
+        // Try every reasonable signature for frontierSign — TikTok versions differ
+        const attempts = [
+          { name: "frontierSign(url)", fn: () => ac.frontierSign(u) },
+          { name: "frontierSign({url})", fn: () => ac.frontierSign({ url: u }) },
+          { name: "sign({url})", fn: () => typeof ac.sign === "function" ? ac.sign({ url: u }) : null },
+          { name: "frontierSign({url, params})", fn: () => ac.frontierSign({ url: u, params: new URL(u).search }) },
+        ];
+        for (const a of attempts) {
+          try {
+            const r = a.fn();
+            out.tried.push({ name: a.name, type: typeof r, value: r ? JSON.parse(JSON.stringify(r)) : r });
+          } catch (e) {
+            out.tried.push({ name: a.name, error: e.message });
+          }
+        }
+        return out;
+      }, targetUrl);
+      res.writeHead(200);
+      res.end(JSON.stringify(probe, null, 2));
+      return;
+    }
+
     if (url.pathname === "/signature" && req.method === "POST") {
       let body = "";
       for await (const chunk of req) {
