@@ -559,6 +559,10 @@ async function ensurePageReady() {
  * Triggers fetch, SDK signs it, we capture and abort
  * @param {string} targetUrl - The URL to sign
  * @param {string|null} userAgent - Optional custom user agent to return in response
+ * @param {string|null} navigateTo - Optional TikTok page URL; mutually exclusive
+ *   with body (see _generateSignedUrlInternal).
+ * @param {string} body - Optional request body for POST endpoints; mutually
+ *   exclusive with navigateTo.
  */
 async function generateSignedUrl(
   targetUrl,
@@ -577,6 +581,9 @@ async function generateSignedUrl(
  * @param {string|null} userAgent - Optional UA to return in response
  * @param {string|null} navigateTo - Optional TikTok page URL; when given,
  *   the response uses a page-intercept path instead of the default fast path.
+ *   Mutually exclusive with body.
+ * @param {string} body - Optional request body for POST endpoints, covered by
+ *   the signature. Mutually exclusive with navigateTo.
  */
 async function _generateSignedUrlInternal(
   targetUrl,
@@ -597,6 +604,13 @@ async function _generateSignedUrlInternal(
 
   const attempt = async () => {
     if (navigateTo) {
+      if (body) {
+        throw new Error(
+          "body is not supported together with navigateTo: the page-intercept " +
+            "path reuses a signature emitted by TikTok's page, which cannot " +
+            "cover a caller-supplied body. Omit navigateTo to sign a body.",
+        );
+      }
       console.log(`[Server] Sign via page intercept: navigateTo=${navigateTo}`);
       return _signViaPageIntercept(fetchUrl, navigateTo, userAgent);
     }
@@ -1083,6 +1097,18 @@ async function handleRequest(req, res) {
             status: "error",
             message:
               'URL is required in body as JSON { "url": "...", "navigateTo": "...", "userAgent": "..." } or plain text URL',
+          }),
+        );
+        return;
+      }
+
+      if (navigateTo && requestBody) {
+        res.writeHead(400);
+        res.end(
+          JSON.stringify({
+            status: "error",
+            message:
+              '"body" cannot be combined with "navigateTo" — the page-intercept path reuses a signature emitted by TikTok\'s page and cannot cover a caller-supplied body. Omit "navigateTo" to sign a body.',
           }),
         );
         return;
