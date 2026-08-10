@@ -6,7 +6,7 @@
  * Uses a persistent browser session with local SDK injection for reliable signature generation.
  *
  * Endpoints:
- * - POST /signature - Generate signed URL (body: { "url": "..." }) - RECOMMENDED for scalability
+ * - POST /signature - Generate signed URL (body: { "url": "...", "body": "<request body, for POST endpoints>" }) - RECOMMENDED for scalability
  * - POST /fetch     - Fetch through browser (slower, but 100% reliable fallback)
  * - GET  /health    - Health check
  * - GET  /restart   - Restart browser session
@@ -559,14 +559,19 @@ async function ensurePageReady() {
  * Triggers fetch, SDK signs it, we capture and abort
  * @param {string} targetUrl - The URL to sign
  * @param {string|null} userAgent - Optional custom user agent to return in response
+ * @param {string|null} navigateTo - Optional TikTok page URL; mutually exclusive
+ *   with body (see _generateSignedUrlInternal).
+ * @param {string} body - Optional request body for POST endpoints; mutually
+ *   exclusive with navigateTo.
  */
 async function generateSignedUrl(
   targetUrl,
   userAgent = null,
   navigateTo = null,
+  body = "",
 ) {
   return queueSignatureRequest(() =>
-    _generateSignedUrlInternal(targetUrl, userAgent, navigateTo),
+    _generateSignedUrlInternal(targetUrl, userAgent, navigateTo, body),
   );
 }
 
@@ -576,11 +581,15 @@ async function generateSignedUrl(
  * @param {string|null} userAgent - Optional UA to return in response
  * @param {string|null} navigateTo - Optional TikTok page URL; when given,
  *   the response uses a page-intercept path instead of the default fast path.
+ *   Mutually exclusive with body.
+ * @param {string} body - Optional request body for POST endpoints, covered by
+ *   the signature. Mutually exclusive with navigateTo.
  */
 async function _generateSignedUrlInternal(
   targetUrl,
   userAgent = null,
   navigateTo = null,
+  body = "",
 ) {
   await initBrowser();
   await ensurePageReady();
@@ -595,11 +604,18 @@ async function _generateSignedUrlInternal(
 
   const attempt = async () => {
     if (navigateTo) {
+      if (body) {
+        throw new Error(
+          "body is not supported together with navigateTo: the page-intercept " +
+            "path reuses a signature emitted by TikTok's page, which cannot " +
+            "cover a caller-supplied body. Omit navigateTo to sign a body.",
+        );
+      }
       console.log(`[Server] Sign via page intercept: navigateTo=${navigateTo}`);
       return _signViaPageIntercept(fetchUrl, navigateTo, userAgent);
     }
     console.log(`[Server] Signing URL: ${fetchUrl.substring(0, 100)}...`);
-    return _signDirectly(fetchUrl, userAgent);
+    return _signDirectly(fetchUrl, userAgent, body);
   };
 
   try {
@@ -659,8 +675,9 @@ async function _signViaPageIntercept(targetUrl, navigateTo, userAgent = null) {
   );
 }
 
-async function _signDirectly(fetchUrl, userAgent = null) {
-  const out = await page.evaluate((url) => {
+async function _signDirectly(fetchUrl, userAgent = null, bodyStr = "") {
+  // prettier-ignore
+  const out = await page.evaluate((url, body) => {
     if (typeof window.__sdkN === "undefined") {
       return { error: "SDK not initialized" };
     }
@@ -722,7 +739,7 @@ async function _signDirectly(fetchUrl, userAgent = null) {
         ? window.byted_acrawler
         : null;
     try {
-      const xb = u995.call(acrawlerInst, queryString, "");
+      const xb = u995.call(acrawlerInst, queryString, body);
       return {
         urlBase: u.toString(),
         queryString,
@@ -735,16 +752,22 @@ async function _signDirectly(fetchUrl, userAgent = null) {
     } catch (e) {
       return { error: e.message, stack: e.stack };
     }
-  }, fetchUrl);
+  }, fetchUrl, bodyStr);
 
   if (out.error) {
     throw new Error("Sign failed: " + out.error);
   }
 
-  const xg = encodeXGnarly(out.queryString, "", out.userAgent, out.counters, {
-    ubcode: 4,
-    sdkVersion: "1.0.0.368",
-  });
+  const xg = encodeXGnarly(
+    out.queryString,
+    bodyStr,
+    out.userAgent,
+    out.counters,
+    {
+      ubcode: 4,
+      sdkVersion: "1.0.0.368",
+    },
+  );
 
   const u = new URL(out.urlBase);
   u.searchParams.set("X-Bogus", out.xBogus);
@@ -1045,6 +1068,7 @@ async function handleRequest(req, res) {
       let targetUrl = null;
       let userAgent = null;
       let navigateTo = null;
+      let requestBody = "";
 
       // Try to parse as JSON first
       try {
@@ -1052,6 +1076,12 @@ async function handleRequest(req, res) {
         if (json.url) targetUrl = json.url;
         if (json.userAgent) userAgent = json.userAgent;
         if (json.navigateTo) navigateTo = json.navigateTo;
+        // For POST endpoints: forward the body so the signature covers it.
+        if (json.body != null)
+          requestBody =
+            typeof json.body === "string"
+              ? json.body
+              : JSON.stringify(json.body);
       } catch (e) {
         // Body might be a direct URL string
         try {
@@ -1072,7 +1102,24 @@ async function handleRequest(req, res) {
         return;
       }
 
-      const result = await generateSignedUrl(targetUrl, userAgent, navigateTo);
+      if (navigateTo && requestBody) {
+        res.writeHead(400);
+        res.end(
+          JSON.stringify({
+            status: "error",
+            message:
+              '"body" cannot be combined with "navigateTo" — the page-intercept path reuses a signature emitted by TikTok\'s page and cannot cover a caller-supplied body. Omit "navigateTo" to sign a body.',
+          }),
+        );
+        return;
+      }
+
+      const result = await generateSignedUrl(
+        targetUrl,
+        userAgent,
+        navigateTo,
+        requestBody,
+      );
 
       res.writeHead(200);
       res.end(
