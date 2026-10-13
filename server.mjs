@@ -999,13 +999,28 @@ async function handleRequest(req, res) {
         try {
           const response = await fetch(url, {
             credentials: "include",
-            headers: { Accept: "application/json" },
+            headers: { Accept: "application/json, text/html;q=0.9, */*;q=0.8" },
           });
           const text = await response.text();
+          const contentType = response.headers.get("content-type") || "";
+          // API endpoints answer JSON; page URLs (e.g. /@user/video/123) answer
+          // HTML. Parse JSON when possible, otherwise hand back the raw text so
+          // callers can extract embedded page data themselves.
+          let data = null;
+          let raw = null;
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch (e) {
+              raw = text;
+            }
+          }
           return {
             status: response.status,
             bodyLength: text.length,
-            data: text ? JSON.parse(text) : null,
+            contentType,
+            data,
+            text: raw,
           };
         } catch (e) {
           return { error: e.message };
@@ -1030,7 +1045,9 @@ async function handleRequest(req, res) {
         JSON.stringify({
           status: "ok",
           httpStatus: fetchResult.status,
+          contentType: fetchResult.contentType,
           data: fetchResult.data,
+          ...(fetchResult.text != null && { text: fetchResult.text }),
         }),
       );
       return;

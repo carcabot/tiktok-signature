@@ -115,11 +115,24 @@ curl -X POST http://localhost:8080/fetch \
 {
   "status": "ok",
   "httpStatus": 200,
+  "contentType": "application/json; charset=utf-8",
   "data": {
     "itemList": [...],
     "cursor": 30,
     "hasMore": true
   }
+}
+```
+
+**Non-JSON responses (HTML pages):** when the target URL returns something that is not JSON (for example a video page such as `https://www.tiktok.com/@user/video/123...`), `data` is `null` and the raw body is returned in `text` instead, so you can extract embedded page data (e.g. `__UNIVERSAL_DATA_FOR_REHYDRATION__`) yourself:
+
+```json
+{
+  "status": "ok",
+  "httpStatus": 200,
+  "contentType": "text/html; charset=utf-8",
+  "data": null,
+  "text": "<!DOCTYPE html>..."
 }
 ```
 
