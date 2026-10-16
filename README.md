@@ -398,26 +398,26 @@ See the `examples/` folder for more complete examples (comments, search, trendin
 
 ### Environment Variables
 
-| Variable                    | Default | Description                                          |
-| --------------------------- | ------- | ---------------------------------------------------- |
-| `PORT`                      | `8080`  | Server port                                          |
-| `PROXY_ENABLED`             | `false` | Enable proxy support                                 |
-| `PROXY_HOST`                | -       | Proxy host and port (e.g., `proxy.example.com:8080`) |
-| `PROXY_USER`                | -       | Proxy username                                       |
-| `PROXY_PASS`                | -       | Proxy password                                       |
-| `PUPPETEER_EXECUTABLE_PATH` | auto    | Custom Chrome/Chromium path                          |
-| `IDENTITY_POOL_SIZE`        | `3`     | Browser identities kept warm; requests rotate through them |
-| `MAX_GENERATIONS_BEFORE_REFRESH` | `500` | Signatures one identity may emit before it is retired |
-| `MAX_SESSION_AGE_MS`        | `1800000` | Identity age (ms) before it is retired              |
-| `REPORT_MIN_AGE_MS`         | `15000` | `/report` is ignored for identities younger than this (ms) |
-| `REPORT_RETIRE_COOLDOWN_MS` | `20000` | Minimum gap (ms) between report-driven retirements    |
+| Variable                         | Default   | Description                                                |
+| -------------------------------- | --------- | ---------------------------------------------------------- |
+| `PORT`                           | `8080`    | Server port                                                |
+| `PROXY_ENABLED`                  | `false`   | Enable proxy support                                       |
+| `PROXY_HOST`                     | -         | Proxy host and port (e.g., `proxy.example.com:8080`)       |
+| `PROXY_USER`                     | -         | Proxy username                                             |
+| `PROXY_PASS`                     | -         | Proxy password                                             |
+| `PUPPETEER_EXECUTABLE_PATH`      | auto      | Custom Chrome/Chromium path                                |
+| `IDENTITY_POOL_SIZE`             | `3`       | Browser identities kept warm; requests rotate through them |
+| `MAX_GENERATIONS_BEFORE_REFRESH` | `500`     | Signatures one identity may emit before it is retired      |
+| `MAX_SESSION_AGE_MS`             | `1800000` | Identity age (ms) before it is retired                     |
+| `REPORT_MIN_AGE_MS`              | `15000`   | `/report` is ignored for identities younger than this (ms) |
+| `REPORT_RETIRE_COOLDOWN_MS`      | `20000`   | Minimum gap (ms) between report-driven retirements         |
 
 ### Identity pool
 
 Every signature carries the cookies (`ttwid`, `msToken`, `tt_chain_token`, …) of the
 browser identity that produced it, and TikTok keys its abuse decisions on that identity.
 A single identity signing every request soon gets flagged: `/api/post/item_list/` then
-answers HTTP 200 with an empty body for *any* egress IP carrying it, while the same URL
+answers HTTP 200 with an empty body for _any_ egress IP carrying it, while the same URL
 signed by a fresh identity still works. The server therefore keeps `IDENTITY_POOL_SIZE`
 independent identities (one incognito context each), rotates through them per request,
 retires each after `MAX_GENERATIONS_BEFORE_REFRESH` signatures or `MAX_SESSION_AGE_MS`,
