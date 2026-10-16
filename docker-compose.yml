@@ -15,6 +15,9 @@ services:
       - PROXY_PASS=${PROXY_PASS:-}
       - MAX_GENERATIONS_BEFORE_REFRESH=${MAX_GENERATIONS_BEFORE_REFRESH:-500}
       - MAX_SESSION_AGE_MS=${MAX_SESSION_AGE_MS:-1800000}
+      - IDENTITY_POOL_SIZE=${IDENTITY_POOL_SIZE:-3}
+      - REPORT_MIN_AGE_MS=${REPORT_MIN_AGE_MS:-15000}
+      - REPORT_RETIRE_COOLDOWN_MS=${REPORT_RETIRE_COOLDOWN_MS:-20000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
