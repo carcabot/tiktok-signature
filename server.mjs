@@ -27,9 +27,10 @@
  * - PROXY_USER                     - Proxy username
  * - PROXY_PASS                     - Proxy password
  * - IDENTITIES_PER_PROXY           - Identities pinned to each proxy (default: 1)
- * - PROXY_PENALTY_MS               - How long a failing proxy is benched (default: 5 min)
- * - IDENTITY_POOL_SIZE             - Number of concurrent browser identities
- *                                    (default: proxies × IDENTITIES_PER_PROXY, or 3 without proxies)
+ * - PROXY_PENALTY_MS               - How long a failing proxy is benched (default: 5 min, 0 = never)
+ * - EXPOSE_PROXY_IN_SIGNATURE      - Return the proxy URL WITH credentials in /signature (default: false)
+ * - IDENTITY_POOL_SIZE             - Number of concurrent browser identities (default: 3, or
+ *                                    proxies × IDENTITIES_PER_PROXY with PROXY_LIST / PROXY_FILE)
  * - MAX_GENERATIONS_BEFORE_REFRESH - Signatures per identity before it is retired (default: 500)
  * - MAX_SESSION_AGE_MS             - Identity age before it is retired (default: 30 min)
  * - REPORT_MIN_AGE_MS              - Ignore /report for identities younger than this (default: 15 s)
@@ -45,7 +46,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { encode as encodeXGnarly } from "./xgnarly.mjs";
 import {
   ProxyPool,
-  loadProxiesFromEnv,
+  loadProxyConfig,
   maskProxy,
   proxyServerArg,
   proxyUrl,
@@ -69,12 +70,23 @@ let currentUserAgent = DEFAULT_UA;
 
 // Proxy configuration from environment. Every identity gets its own proxy
 // (set on its incognito context), so N proxies give N independent egress IPs.
-// The legacy PROXY_HOST/USER/PASS is just a one-entry pool.
-const proxyPool = new ProxyPool(loadProxiesFromEnv(), {
-  maxPerProxy: Number(process.env.IDENTITIES_PER_PROXY) || 1,
-  penaltyMs: Number(process.env.PROXY_PENALTY_MS) || 5 * 60 * 1000,
+// The legacy PROXY_HOST/USER/PASS is just a one-entry pool. A bad proxy entry
+// stops the server here rather than letting it run unproxied.
+let proxyConfig;
+try {
+  proxyConfig = loadProxyConfig();
+} catch (e) {
+  console.error(`[Server] Proxy configuration error: ${e.message}`);
+  process.exit(1);
+}
+const proxyPool = new ProxyPool(proxyConfig.proxies, {
+  maxPerProxy: proxyConfig.maxPerProxy,
+  penaltyMs: proxyConfig.penaltyMs,
 });
 const PROXY_ENABLED = proxyPool.enabled;
+// /signature's data.proxy carries credentials only when explicitly enabled:
+// the route is unauthenticated, so by default it gets the masked form.
+const EXPOSE_PROXY_IN_SIGNATURE = proxyConfig.exposeProxyInSignature;
 
 // Local SDK path - the SDK is used to generate valid signatures
 const SDK_PATH = path.join(__dirname, "javascript", "webmssdk_5.1.3.js");
@@ -120,11 +132,9 @@ try {
 // Pool configuration
 // ---------------------------------------------------------------------------
 
-const IDENTITY_POOL_SIZE = Math.max(
-  1,
-  Number(process.env.IDENTITY_POOL_SIZE) ||
-    (proxyPool.enabled ? proxyPool.capacity : 3),
-);
+// IDENTITY_POOL_SIZE, or proxies × IDENTITIES_PER_PROXY with PROXY_LIST /
+// PROXY_FILE, or 3 (also for the legacy single PROXY_HOST) — see loadProxyConfig.
+const IDENTITY_POOL_SIZE = proxyConfig.poolSize;
 // Signatures one identity may emit before it is retired. The identity's
 // ttwid/msToken is what TikTok keys on; at high volume (and from many egress
 // IPs) a single identity is flagged within minutes, after which item_list
@@ -1090,7 +1100,11 @@ function parseResult(idn, url, userAgent = null) {
     userAgent: userAgent || currentUserAgent,
     cookies: cookieString,
     identity: idn.id,
-    proxy: idn.proxy ? proxyUrl(idn.proxy) : null,
+    proxy: idn.proxy
+      ? EXPOSE_PROXY_IN_SIGNATURE
+        ? proxyUrl(idn.proxy)
+        : maskProxy(idn.proxy)
+      : null,
   };
 }
 
@@ -1155,6 +1169,8 @@ async function handleRequest(req, res) {
           localSdkAvailable: !!localSdkContent,
           proxyEnabled: PROXY_ENABLED,
           proxies: proxyPool.stats(),
+          identitiesPerProxy: proxyPool.maxPerProxy,
+          exposeProxyInSignature: EXPOSE_PROXY_IN_SIGNATURE,
           userAgent: currentUserAgent,
         }),
       );
@@ -1380,8 +1396,9 @@ async function handleRequest(req, res) {
             "device-id": result.deviceId,
             cookies: result.cookies,
             identity: result.identity,
-            // Egress proxy of the signing identity (null = direct). Fetch the
-            // signed URL through it so TikTok sees the same IP as the cookies.
+            // Egress proxy of the signing identity (null = direct). Masked by
+            // default; with EXPOSE_PROXY_IN_SIGNATURE=true it is the full URL so
+            // the caller can fetch the signed URL from the same IP as the cookies.
             proxy: result.proxy ?? null,
             navigator: {
               user_agent: result.userAgent,

@@ -408,7 +408,8 @@ See the `examples/` folder for more complete examples (comments, search, trendin
 | `PROXY_USER`                     | -         | Proxy username                                             |
 | `PROXY_PASS`                     | -         | Proxy password                                             |
 | `IDENTITIES_PER_PROXY`           | `1`       | Identities pinned to each proxy                            |
-| `PROXY_PENALTY_MS`               | `300000`  | How long (ms) a failing proxy is benched                   |
+| `PROXY_PENALTY_MS`               | `300000`  | How long (ms) a failing proxy is benched (`0` = never)     |
+| `EXPOSE_PROXY_IN_SIGNATURE`      | `false`   | Return the proxy URL with credentials in `/signature`      |
 | `PUPPETEER_EXECUTABLE_PATH`      | auto      | Custom Chrome/Chromium path                                |
 | `IDENTITY_POOL_SIZE`             | `3` \*    | Browser identities kept warm; requests rotate through them |
 | `MAX_GENERATIONS_BEFORE_REFRESH` | `500`     | Signatures one identity may emit before it is retired      |
@@ -416,8 +417,9 @@ See the `examples/` folder for more complete examples (comments, search, trendin
 | `REPORT_MIN_AGE_MS`              | `15000`   | `/report` is ignored for identities younger than this (ms) |
 | `REPORT_RETIRE_COOLDOWN_MS`      | `20000`   | Minimum gap (ms) between report-driven retirements         |
 
-\* With a proxy pool configured, `IDENTITY_POOL_SIZE` defaults to
-`number of proxies × IDENTITIES_PER_PROXY`.
+\* With `PROXY_LIST` or `PROXY_FILE` in use, `IDENTITY_POOL_SIZE` defaults to
+`number of proxies × IDENTITIES_PER_PROXY`. Otherwise (no proxy, or the single
+legacy `PROXY_HOST`) it stays `3`.
 
 ### Identity pool
 
@@ -475,11 +477,13 @@ IDENTITIES_PER_PROXY=1       # pool size defaults to proxies × this
 
 ```text
 host:port
-host:port:user:pass
+host:port:user:pass         # the password may contain ':'
 user:pass@host:port
 http://user:pass@host:port
 socks5://host:port          # SOCKS only without credentials (Chromium limitation)
 ```
+
+IPv6 hosts (`[2001:db8::1]:8080`) are not supported.
 
 `proxies.json` — an array of strings or objects (or `{ "proxies": [...] }`):
 
@@ -491,18 +495,40 @@ socks5://host:port          # SOCKS only without credentials (Chromium limitatio
 ```
 
 All sources (`PROXY_LIST`, `PROXY_FILE`, legacy `PROXY_HOST`) are merged and
-de-duplicated. Behaviour:
+de-duplicated. **Any entry that doesn't parse stops the server at startup**
+(the error names the entry, password masked) — a typo never silently falls
+back to a direct connection on the host's real IP.
 
-- New identities go to the least-loaded healthy proxy.
+Behaviour:
+
+- New identities go to the least-loaded healthy proxy, and never more than
+  `IDENTITIES_PER_PROXY` live identities share one proxy while a slot exists
+  anywhere. If `IDENTITY_POOL_SIZE` is larger than proxies × `IDENTITIES_PER_PROXY`
+  (e.g. 3 identities on the one legacy `PROXY_HOST`), the per-proxy limit is
+  raised just enough to spread them evenly.
 - A proxy whose identity fails to start, or whose identity is reported burnt via
-  `POST /report`, is benched for `PROXY_PENALTY_MS` and replacements go elsewhere.
-  If every proxy is benched, the one whose penalty ends first is still used.
+  `POST /report`, is benched for `PROXY_PENALTY_MS` and replacements go to a
+  healthy proxy with a free slot. If none has one, the replacement takes the
+  benched proxy's free slot rather than doubling up with a live identity on a
+  healthy IP.
 - `GET /health` lists each proxy (password masked) with its identity count and
   penalty state; each identity shows the proxy it is pinned to.
-- `POST /signature` returns `data.proxy` — the signing identity's proxy URL
-  (with credentials, `null` when direct). Fetch the signed URL **through that
+- `POST /signature` returns `data.proxy`, the signing identity's proxy (`null`
+  when direct), **masked by default** (`http://user:***@host:port`). The route
+  has no authentication, so the full URL with credentials is only returned when
+  `EXPOSE_PROXY_IN_SIGNATURE=true` — enable it only if the server is not
+  reachable by untrusted clients. With it, fetch the signed URL **through that
   proxy** so TikTok sees the same IP as the cookies. `POST /fetch` already runs
   inside the identity's context, so it needs nothing extra.
+
+With Docker, mount the file and use the in-container path:
+
+```yaml
+environment:
+  - PROXY_FILE=/app/proxies.txt
+volumes:
+  - ./proxies.txt:/app/proxies.txt:ro
+```
 
 > Chromium cannot authenticate SOCKS proxies, so a SOCKS proxy with a
 > username/password is rejected at startup. Use HTTP proxies, or SOCKS proxies
