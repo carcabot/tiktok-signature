@@ -20,11 +20,16 @@
  *
  * Environment Variables:
  * - PORT                           - Server port (default: 8080)
- * - PROXY_ENABLED                  - Enable proxy (default: false)
+ * - PROXY_LIST                     - Proxies (comma/space/newline separated); each identity is pinned to one
+ * - PROXY_FILE                     - Path to a .txt (one proxy per line) or .json proxy list
+ * - PROXY_ENABLED                  - Enable the legacy single proxy below (default: false)
  * - PROXY_HOST                     - Proxy host:port (e.g., "proxy.example.com:8080")
  * - PROXY_USER                     - Proxy username
  * - PROXY_PASS                     - Proxy password
- * - IDENTITY_POOL_SIZE             - Number of concurrent browser identities (default: 3)
+ * - IDENTITIES_PER_PROXY           - Identities pinned to each proxy (default: 1)
+ * - PROXY_PENALTY_MS               - How long a failing proxy is benched (default: 5 min)
+ * - IDENTITY_POOL_SIZE             - Number of concurrent browser identities
+ *                                    (default: proxies × IDENTITIES_PER_PROXY, or 3 without proxies)
  * - MAX_GENERATIONS_BEFORE_REFRESH - Signatures per identity before it is retired (default: 500)
  * - MAX_SESSION_AGE_MS             - Identity age before it is retired (default: 30 min)
  * - REPORT_MIN_AGE_MS              - Ignore /report for identities younger than this (default: 15 s)
@@ -38,6 +43,13 @@ import { fileURLToPath } from "url";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { encode as encodeXGnarly } from "./xgnarly.mjs";
+import {
+  ProxyPool,
+  loadProxiesFromEnv,
+  maskProxy,
+  proxyServerArg,
+  proxyUrl,
+} from "./proxy-pool.mjs";
 
 // Use stealth plugin with default evasions
 puppeteer.use(StealthPlugin());
@@ -55,12 +67,14 @@ const DEFAULT_UA =
 // Current active user agent (can be overridden per-request)
 let currentUserAgent = DEFAULT_UA;
 
-// Proxy configuration from environment
-const PROXY_ENABLED =
-  process.env.PROXY_ENABLED === "true" && process.env.PROXY_HOST;
-const PROXY_HOST = process.env.PROXY_HOST || "";
-const PROXY_USER = process.env.PROXY_USER || "";
-const PROXY_PASS = process.env.PROXY_PASS || "";
+// Proxy configuration from environment. Every identity gets its own proxy
+// (set on its incognito context), so N proxies give N independent egress IPs.
+// The legacy PROXY_HOST/USER/PASS is just a one-entry pool.
+const proxyPool = new ProxyPool(loadProxiesFromEnv(), {
+  maxPerProxy: Number(process.env.IDENTITIES_PER_PROXY) || 1,
+  penaltyMs: Number(process.env.PROXY_PENALTY_MS) || 5 * 60 * 1000,
+});
+const PROXY_ENABLED = proxyPool.enabled;
 
 // Local SDK path - the SDK is used to generate valid signatures
 const SDK_PATH = path.join(__dirname, "javascript", "webmssdk_5.1.3.js");
@@ -108,7 +122,8 @@ try {
 
 const IDENTITY_POOL_SIZE = Math.max(
   1,
-  Number(process.env.IDENTITY_POOL_SIZE) || 3,
+  Number(process.env.IDENTITY_POOL_SIZE) ||
+    (proxyPool.enabled ? proxyPool.capacity : 3),
 );
 // Signatures one identity may emit before it is retired. The identity's
 // ttwid/msToken is what TikTok keys on; at high volume (and from many egress
@@ -159,6 +174,7 @@ class Identity {
     this.initMethod = null;
     this.signedUrlCache = new Map();
     this.busy = false; // page.evaluate in flight
+    this.proxy = null; // pinned proxy (from proxyPool), null = direct
   }
 
   get ageMs() {
@@ -206,6 +222,7 @@ class Identity {
       ageMinutes: Math.round(this.ageMs / 60000),
       generationCount: this.generationCount,
       ttwid: this.ttwid ? this.ttwid.slice(0, 12) + "…" : null,
+      proxy: this.proxy ? maskProxy(this.proxy) : null,
     };
   }
 }
@@ -305,9 +322,12 @@ async function ensureBrowser() {
       "--window-size=1920,1080",
     ];
 
+    // Proxies are applied per identity (createBrowserContext({ proxyServer })),
+    // not browser-wide, so no --proxy-server here.
     if (PROXY_ENABLED) {
-      browserArgs.push(`--proxy-server=http://${PROXY_HOST}`);
-      console.log(`[Server] Proxy enabled: ${PROXY_HOST}`);
+      console.log(
+        `[Server] Proxy pool: ${proxyPool.size} proxies, ${proxyPool.maxPerProxy} identity/proxy`,
+      );
     } else {
       console.log("[Server] Proxy disabled - direct connection");
     }
@@ -330,6 +350,7 @@ async function ensureBrowser() {
       for (const idn of identities) {
         idn.ready = false;
         idn.retired = true;
+        releaseIdentityProxy(idn);
       }
       identities.length = 0;
     });
@@ -349,6 +370,7 @@ async function closeBrowser() {
   for (const idn of identities) {
     idn.ready = false;
     idn.retired = true;
+    releaseIdentityProxy(idn);
   }
   identities.length = 0;
 
@@ -563,8 +585,16 @@ async function createIdentity() {
   const idn = new Identity();
   console.log(`[Identity ${idn.id}] Creating...`);
 
+  // Pin a proxy for this identity's whole life (released in destroyIdentity).
+  idn.proxy = proxyPool.acquire();
+  if (idn.proxy) {
+    console.log(`[Identity ${idn.id}] Proxy: ${maskProxy(idn.proxy)}`);
+  }
+
   try {
-    idn.context = await b.createBrowserContext();
+    idn.context = await b.createBrowserContext(
+      idn.proxy ? { proxyServer: proxyServerArg(idn.proxy) } : {},
+    );
     idn.page = await idn.context.newPage();
     const page = idn.page;
 
@@ -583,11 +613,11 @@ async function createIdentity() {
       } catch (e) {}
     });
 
-    // Authenticate with proxy if enabled
-    if (PROXY_ENABLED && PROXY_USER && PROXY_PASS) {
+    // Authenticate with this identity's proxy, if it needs credentials
+    if (idn.proxy && idn.proxy.username) {
       await page.authenticate({
-        username: PROXY_USER,
-        password: PROXY_PASS,
+        username: idn.proxy.username,
+        password: idn.proxy.password,
       });
     }
 
@@ -617,10 +647,19 @@ async function createIdentity() {
 
     idn.createdAt = Date.now();
     idn.ready = true;
+    proxyPool.markHealthy(idn.proxy);
     console.log(`[Identity ${idn.id}] Ready`);
     return idn;
   } catch (e) {
     console.error(`[Identity ${idn.id}] Init error:`, e.message);
+    // A failed warm-up is most often the proxy (dead, slow, auth refused):
+    // bench it so the replacement identity lands on another one.
+    if (idn.proxy) {
+      proxyPool.penalize(idn.proxy, "identity init failed");
+      console.error(
+        `[Identity ${idn.id}] Proxy benched for ${Math.round(proxyPool.penaltyMs / 1000)}s: ${maskProxy(idn.proxy)}`,
+      );
+    }
     await destroyIdentity(idn);
     throw e;
   }
@@ -638,6 +677,14 @@ async function destroyIdentity(idn) {
   }
   idn.context = null;
   idn.page = null;
+  releaseIdentityProxy(idn);
+}
+
+/** Return an identity's proxy slot to the pool (idempotent). */
+function releaseIdentityProxy(idn) {
+  if (!idn.proxy) return;
+  proxyPool.release(idn.proxy);
+  idn.proxy = null;
 }
 
 /**
@@ -1043,6 +1090,7 @@ function parseResult(idn, url, userAgent = null) {
     userAgent: userAgent || currentUserAgent,
     cookies: cookieString,
     identity: idn.id,
+    proxy: idn.proxy ? proxyUrl(idn.proxy) : null,
   };
 }
 
@@ -1106,6 +1154,7 @@ async function handleRequest(req, res) {
           isProcessing: isProcessingQueue,
           localSdkAvailable: !!localSdkContent,
           proxyEnabled: PROXY_ENABLED,
+          proxies: proxyPool.stats(),
           userAgent: currentUserAgent,
         }),
       );
@@ -1168,6 +1217,11 @@ async function handleRequest(req, res) {
       console.log(
         `[Identity ${idn.id}] Reported burnt by caller (${json.reason || "empty response"})`,
       );
+      // TikTok judges the egress IP too: move the replacement to another
+      // proxy instead of minting it on the same, likely flagged, IP.
+      if (idn.proxy) {
+        proxyPool.penalize(idn.proxy, "identity reported burnt");
+      }
       // Don't block the caller on the replacement warm-up.
       retireIdentity(idn, "reported burnt").catch((e) =>
         console.error(
@@ -1326,6 +1380,9 @@ async function handleRequest(req, res) {
             "device-id": result.deviceId,
             cookies: result.cookies,
             identity: result.identity,
+            // Egress proxy of the signing identity (null = direct). Fetch the
+            // signed URL through it so TikTok sees the same IP as the cookies.
+            proxy: result.proxy ?? null,
             navigator: {
               user_agent: result.userAgent,
             },

@@ -401,16 +401,23 @@ See the `examples/` folder for more complete examples (comments, search, trendin
 | Variable                         | Default   | Description                                                |
 | -------------------------------- | --------- | ---------------------------------------------------------- |
 | `PORT`                           | `8080`    | Server port                                                |
-| `PROXY_ENABLED`                  | `false`   | Enable proxy support                                       |
+| `PROXY_LIST`                     | -         | Proxies separated by commas/spaces/newlines (see below)    |
+| `PROXY_FILE`                     | -         | Path to a `.txt` (one per line) or `.json` proxy list      |
+| `PROXY_ENABLED`                  | `false`   | Enable the single proxy below                              |
 | `PROXY_HOST`                     | -         | Proxy host and port (e.g., `proxy.example.com:8080`)       |
 | `PROXY_USER`                     | -         | Proxy username                                             |
 | `PROXY_PASS`                     | -         | Proxy password                                             |
+| `IDENTITIES_PER_PROXY`           | `1`       | Identities pinned to each proxy                            |
+| `PROXY_PENALTY_MS`               | `300000`  | How long (ms) a failing proxy is benched                   |
 | `PUPPETEER_EXECUTABLE_PATH`      | auto      | Custom Chrome/Chromium path                                |
-| `IDENTITY_POOL_SIZE`             | `3`       | Browser identities kept warm; requests rotate through them |
+| `IDENTITY_POOL_SIZE`             | `3` \*    | Browser identities kept warm; requests rotate through them |
 | `MAX_GENERATIONS_BEFORE_REFRESH` | `500`     | Signatures one identity may emit before it is retired      |
 | `MAX_SESSION_AGE_MS`             | `1800000` | Identity age (ms) before it is retired                     |
 | `REPORT_MIN_AGE_MS`              | `15000`   | `/report` is ignored for identities younger than this (ms) |
 | `REPORT_RETIRE_COOLDOWN_MS`      | `20000`   | Minimum gap (ms) between report-driven retirements         |
+
+\* With a proxy pool configured, `IDENTITY_POOL_SIZE` defaults to
+`number of proxies × IDENTITIES_PER_PROXY`.
 
 ### Identity pool
 
@@ -446,6 +453,60 @@ PROXY_PASS=your_password
 ```
 
 Without proxies, you may experience empty responses, rate limiting (HTTP 429), or IP blocks after high volume requests.
+
+#### Multiple proxies
+
+Give the server several proxies and **each identity is pinned to its own proxy**
+for its whole life (set on its incognito context with
+`createBrowserContext({ proxyServer })`, not browser-wide). TikTok judges both the
+identity's cookies and the egress IP, so this spreads the load over N IPs and an
+identity never changes IP mid-session.
+
+```bash
+# inline
+PROXY_LIST=http://user:pass@1.2.3.4:8080,5.6.7.8:3128:user:pass
+
+# or a file
+PROXY_FILE=./proxies.txt     # or ./proxies.json
+IDENTITIES_PER_PROXY=1       # pool size defaults to proxies × this
+```
+
+`proxies.txt` — one proxy per line, `#` starts a comment. Accepted notations:
+
+```text
+host:port
+host:port:user:pass
+user:pass@host:port
+http://user:pass@host:port
+socks5://host:port          # SOCKS only without credentials (Chromium limitation)
+```
+
+`proxies.json` — an array of strings or objects (or `{ "proxies": [...] }`):
+
+```json
+[
+  "http://user:pass@1.2.3.4:8080",
+  { "host": "5.6.7.8", "port": 3128, "username": "user", "password": "pass" }
+]
+```
+
+All sources (`PROXY_LIST`, `PROXY_FILE`, legacy `PROXY_HOST`) are merged and
+de-duplicated. Behaviour:
+
+- New identities go to the least-loaded healthy proxy.
+- A proxy whose identity fails to start, or whose identity is reported burnt via
+  `POST /report`, is benched for `PROXY_PENALTY_MS` and replacements go elsewhere.
+  If every proxy is benched, the one whose penalty ends first is still used.
+- `GET /health` lists each proxy (password masked) with its identity count and
+  penalty state; each identity shows the proxy it is pinned to.
+- `POST /signature` returns `data.proxy` — the signing identity's proxy URL
+  (with credentials, `null` when direct). Fetch the signed URL **through that
+  proxy** so TikTok sees the same IP as the cookies. `POST /fetch` already runs
+  inside the identity's context, so it needs nothing extra.
+
+> Chromium cannot authenticate SOCKS proxies, so a SOCKS proxy with a
+> username/password is rejected at startup. Use HTTP proxies, or SOCKS proxies
+> whitelisted by IP.
 
 ## Docker Deployment
 
@@ -658,8 +719,9 @@ This error occurs when the browser fingerprint params in your URL don't match th
 ### Proxy Not Working
 
 - Verify proxy credentials are correct
-- Check proxy host format: `host:port` (no `http://` prefix)
-- Ensure `PROXY_ENABLED=true` is set
+- Check proxy host format: `host:port`
+- Ensure `PROXY_ENABLED=true` is set (only needed for `PROXY_HOST`; `PROXY_LIST` / `PROXY_FILE` need no flag)
+- Check `GET /health` → `proxies[]`: a proxy with `penalized: true` failed to start an identity or was reported burnt
 
 ## Contributing
 

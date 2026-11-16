@@ -215,3 +215,7 @@ docker-compose.override.yml
 .claude/
 # Persistent Chrome user-data dir created by puppeteer at runtime
 .chrome-profile/
+
+# Proxy lists (PROXY_FILE) carry credentials
+proxies.txt
+proxies.json
