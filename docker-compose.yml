@@ -13,11 +13,22 @@ services:
       - PROXY_HOST=${PROXY_HOST:-}
       - PROXY_USER=${PROXY_USER:-}
       - PROXY_PASS=${PROXY_PASS:-}
+      # Multiple proxies (one per identity). For PROXY_FILE, mount the file
+      # and point at the in-container path, e.g. PROXY_FILE=/app/proxies.txt
+      # with the volume below.
+      - PROXY_LIST=${PROXY_LIST:-}
+      - PROXY_FILE=${PROXY_FILE:-}
+      - IDENTITIES_PER_PROXY=${IDENTITIES_PER_PROXY:-}
+      - PROXY_PENALTY_MS=${PROXY_PENALTY_MS:-}
+      - EXPOSE_PROXY_IN_SIGNATURE=${EXPOSE_PROXY_IN_SIGNATURE:-false}
       - MAX_GENERATIONS_BEFORE_REFRESH=${MAX_GENERATIONS_BEFORE_REFRESH:-500}
       - MAX_SESSION_AGE_MS=${MAX_SESSION_AGE_MS:-1800000}
-      - IDENTITY_POOL_SIZE=${IDENTITY_POOL_SIZE:-3}
+      # Empty = 3, or proxies x IDENTITIES_PER_PROXY with PROXY_LIST/PROXY_FILE
+      - IDENTITY_POOL_SIZE=${IDENTITY_POOL_SIZE:-}
       - REPORT_MIN_AGE_MS=${REPORT_MIN_AGE_MS:-15000}
       - REPORT_RETIRE_COOLDOWN_MS=${REPORT_RETIRE_COOLDOWN_MS:-20000}
+    # volumes:
+    #   - ./proxies.txt:/app/proxies.txt:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
